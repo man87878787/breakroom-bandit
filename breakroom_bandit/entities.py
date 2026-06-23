@@ -133,7 +133,7 @@ class Boss:
         # Tier 2: scent tracking (defeated by spilling coffee on the trail).
         if tier >= 2 and scent:
             nearest = min(scent, key=lambda m: math.hypot(m.x - self.x, m.y - self.y))
-            if math.hypot(nearest.x - self.x, nearest.y - self.y) <= S.SIGHT_RANGE:
+            if math.hypot(nearest.x - self.x, nearest.y - self.y) <= S.SCENT_RANGE:
                 self._scent_target = level.world_to_tile(nearest.x, nearest.y)
                 return "SCENT"
 

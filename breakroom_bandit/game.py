@@ -13,9 +13,10 @@ from .level import Level
 # Game states
 TITLE, PLAY, CAUGHT, ASLEEP, WIN = "title", "play", "caught", "asleep", "win"
 
+# Display verbs for the live detection alert ("BOSS HEARS YOU!", etc.).
 SENSE_LABELS = {
-    "HEARING": "EARS",
-    "SCENT": "NOSE",
+    "HEARING": "HEARS",
+    "SCENT": "NOSES",
     "SIGHT": "EYES",
 }
 
@@ -323,7 +324,8 @@ class Game:
 
         # live detection alert
         if self.boss.alert > 0 and self.boss.last_sense:
-            warn = self.font_md.render(f"BOSS {self.boss.last_sense}S YOU!", True, S.C_WARN)
+            label = SENSE_LABELS.get(self.boss.last_sense, self.boss.last_sense)
+            warn = self.font_md.render(f"BOSS {label} YOU!", True, S.C_WARN)
             self.screen.blit(warn, (320, 34))
         else:
             calm = self.font_sm.render("Status: Boss is none the wiser...", True, S.C_GOOD)

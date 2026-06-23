@@ -84,6 +84,7 @@ SLEEP_REFILL = 70.0          # per second while at coffee station
 
 # Boss sensory ranges
 HEAR_RANGE = 4.2 * TILE       # how close running footsteps can be heard
+SCENT_RANGE = 8.0 * TILE      # how far the Boss can pick up a scent marker
 SIGHT_RANGE = 8.0 * TILE      # line-of-sight reach in lit corridors
 ALERT_DURATION = 3.0          # seconds the Boss keeps chasing after a detection
 
