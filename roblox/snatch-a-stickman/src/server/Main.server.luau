@@ -385,6 +385,17 @@ local function createStickman(rarity)
 					break
 				end
 			end
+
+			-- Compact the victim's display so future recruits never overlap an old slot.
+			local victimPlot = openPlots[victimState.PlotIndex]
+			if victimPlot then
+				for slotIndex, owned in ipairs(victimState.Sidekicks) do
+					local targetSlot = victimPlot.Slots:FindFirstChild(tostring(slotIndex))
+					if targetSlot and owned and owned.Parent then
+						owned:PivotTo(targetSlot.CFrame * CFrame.new(0, 3.2, 0))
+					end
+				end
+			end
 		end
 
 		table.insert(state.Sidekicks, model)
