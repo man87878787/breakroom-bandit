@@ -8,6 +8,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local remotes = ReplicatedStorage:WaitForChild("GameRemotes")
 local toastRemote = remotes:WaitForChild("Toast")
 local carryRemote = remotes:WaitForChild("CarryState")
+local threatRemote = remotes:WaitForChild("ThreatState")
 
 local leaderstats = player:WaitForChild("leaderstats")
 local coins = leaderstats:WaitForChild("Coins")
@@ -128,6 +129,7 @@ stroke(shieldStatus, 0.6)
 local dataStatus = makeText(root, "DataStatus", UDim2.new(0.018, 0, 0.025, 0), UDim2.fromOffset(210, 24), "Profile: loading…", Color3.fromRGB(176, 185, 209), Enum.Font.GothamMedium, 12)
 
 local carryBanner = Instance.new("TextLabel")
+carryBanner.Name = "CarryBanner"
 carryBanner.AnchorPoint = Vector2.new(0.5, 0)
 carryBanner.Position = UDim2.fromScale(0.5, 0.095)
 carryBanner.Size = UDim2.new(0.72, 0, 0, 56)
@@ -145,6 +147,33 @@ local carryPadding = Instance.new("UIPadding")
 carryPadding.PaddingLeft = UDim.new(0, 16)
 carryPadding.PaddingRight = UDim.new(0, 16)
 carryPadding.Parent = carryBanner
+
+local carryScale = Instance.new("UIScale")
+carryScale.Parent = carryBanner
+
+local threatBanner = Instance.new("TextLabel")
+threatBanner.Name = "ThreatBanner"
+threatBanner.AnchorPoint = Vector2.new(0.5, 0)
+threatBanner.Position = UDim2.fromScale(0.5, 0.158)
+threatBanner.Size = UDim2.new(0.64, 0, 0, 48)
+threatBanner.BackgroundColor3 = Color3.fromRGB(186, 62, 68)
+threatBanner.BackgroundTransparency = 0.04
+threatBanner.TextColor3 = Color3.fromRGB(255, 255, 255)
+threatBanner.TextScaled = true
+threatBanner.Font = Enum.Font.GothamBlack
+threatBanner.Text = "YOUR STICKMAN IS BEING SNATCHED!"
+threatBanner.Visible = false
+threatBanner.Parent = root
+corner(threatBanner, 14)
+stroke(threatBanner, 0.34)
+
+local threatPadding = Instance.new("UIPadding")
+threatPadding.PaddingLeft = UDim.new(0, 16)
+threatPadding.PaddingRight = UDim.new(0, 16)
+threatPadding.Parent = threatBanner
+
+local threatScale = Instance.new("UIScale")
+threatScale.Parent = threatBanner
 
 local hint = Instance.new("TextLabel")
 hint.AnchorPoint = Vector2.new(0.5, 1)
@@ -262,8 +291,30 @@ carryRemote.OnClientEvent:Connect(function(active, message)
 	carryActive = active == true
 	carryMessage = tostring(message or "")
 	carryBanner.Visible = carryActive
-	if carryActive and carryMessage ~= "" then
-		carryBanner.Text = carryMessage
+	if carryActive then
+		carryScale.Scale = 0.9
+		TweenService:Create(carryScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+		if carryMessage ~= "" then
+			carryBanner.Text = carryMessage
+		end
+	else
+		carryScale.Scale = 1
+		carryBanner.BackgroundColor3 = Color3.fromRGB(32, 166, 84)
+	end
+end)
+
+local threatActive = false
+local threatMessage = ""
+threatRemote.OnClientEvent:Connect(function(active, message)
+	threatActive = active == true
+	threatMessage = tostring(message or "")
+	threatBanner.Visible = threatActive
+	if threatActive then
+		threatBanner.Text = threatMessage ~= "" and threatMessage or "YOUR STICKMAN IS BEING SNATCHED!"
+		threatScale.Scale = 0.9
+		TweenService:Create(threatScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+	else
+		threatScale.Scale = 1
 	end
 end)
 
@@ -303,12 +354,16 @@ local function adaptToViewport()
 		stats.Size = UDim2.fromOffset(210, 136)
 		missions.Size = UDim2.new(0.52, 0, 0, 142)
 		shieldStatus.Size = UDim2.fromOffset(200, 38)
+		carryBanner.Size = UDim2.new(0.88, 0, 0, 52)
+		threatBanner.Size = UDim2.new(0.88, 0, 0, 46)
 		hint.Size = UDim2.new(0.9, 0, 0, 24)
 	else
 		title.Size = UDim2.new(0.38, 0, 0, 46)
 		stats.Size = UDim2.fromOffset(255, 142)
 		missions.Size = UDim2.fromOffset(330, 146)
 		shieldStatus.Size = UDim2.fromOffset(235, 40)
+		carryBanner.Size = UDim2.new(0.72, 0, 0, 56)
+		threatBanner.Size = UDim2.new(0.64, 0, 0, 48)
 		hint.Size = UDim2.new(0.72, 0, 0, 28)
 	end
 end
@@ -354,11 +409,34 @@ RunService.Heartbeat:Connect(function(dt)
 		local pad = plot and plot:FindFirstChild("SecurePad")
 		local character = player.Character
 		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+		local now = workspace:GetServerTimeNow()
+		local rarity = string.upper(tostring(player:GetAttribute("CarryRarity") or "STICKMAN"))
+		local victimName = tostring(player:GetAttribute("CarryVictimName") or "")
+		local expiresAt = player:GetAttribute("CarryExpiresServerTime") or 0
+		local secondsLeft = math.max(0, math.ceil(expiresAt - now))
+		carryBanner.BackgroundColor3 = secondsLeft <= 8 and Color3.fromRGB(202, 72, 64) or Color3.fromRGB(32, 166, 84)
 		if pad and rootPart then
 			local distance = math.max(0, math.floor((rootPart.Position - pad.Position).Magnitude + 0.5))
-			carryBanner.Text = string.format("ESCAPE!  %d studs to SECURE", distance)
+			if victimName ~= "" then
+				carryBanner.Text = string.format("HOOKED %s FROM %s  •  %d STUDS  •  %ds", rarity, string.upper(victimName), distance, secondsLeft)
+			else
+				carryBanner.Text = string.format("HOOKED %s  •  %d STUDS  •  %ds", rarity, distance, secondsLeft)
+			end
 		elseif carryMessage ~= "" then
-			carryBanner.Text = carryMessage
+			carryBanner.Text = string.format("%s  •  %ds", carryMessage, secondsLeft)
+		end
+	end
+
+	if threatActive then
+		local now = workspace:GetServerTimeNow()
+		local expiresAt = player:GetAttribute("ThreatExpiresServerTime") or 0
+		local secondsLeft = math.max(0, math.ceil(expiresAt - now))
+		local rarity = string.upper(tostring(player:GetAttribute("ThreatRarity") or "STICKMAN"))
+		local carrierName = tostring(player:GetAttribute("ThreatCarrierName") or "")
+		if carrierName ~= "" and expiresAt > 0 then
+			threatBanner.Text = string.format("%s IS SNATCHING YOUR %s!  •  %ds TO RECOVER", string.upper(carrierName), rarity, secondsLeft)
+		elseif threatMessage ~= "" then
+			threatBanner.Text = threatMessage
 		end
 	end
 end)
