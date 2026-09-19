@@ -21,6 +21,10 @@ local carryRemote = remotes:FindFirstChild("CarryState") or Instance.new("Remote
 carryRemote.Name = "CarryState"
 carryRemote.Parent = remotes
 
+local threatRemote = remotes:FindFirstChild("ThreatState") or Instance.new("RemoteEvent")
+threatRemote.Name = "ThreatState"
+threatRemote.Parent = remotes
+
 local world = workspace:FindFirstChild("SnatchTheStickmanWorld")
 if world then
 	world:Destroy()
@@ -93,6 +97,142 @@ end
 local function carryState(player, active, message)
 	if player and player.Parent == Players then
 		carryRemote:FireClient(player, active, message or "")
+	end
+end
+
+local function threatState(player, active, message)
+	if player and player.Parent == Players then
+		threatRemote:FireClient(player, active, message or "")
+	end
+end
+
+local function characterRoot(player)
+	local character = player and player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not humanoid or humanoid.Health <= 0 or not root then
+		return nil
+	end
+	return root
+end
+
+local function canReachStickman(player, model, maxDistance, extraExclude)
+	local root = characterRoot(player)
+	local target = model and model.PrimaryPart
+	if not root or not target or not target.Parent then
+		return false, "That stickman is no longer available."
+	end
+
+	local offset = target.Position - (root.Position + Vector3.new(0, 1.2, 0))
+	if offset.Magnitude > maxDistance then
+		return false, "Move closer before using the snatch hook."
+	end
+
+	local excluded = {player.Character}
+	if extraExclude then
+		table.insert(excluded, extraExclude)
+	end
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = excluded
+	params.IgnoreWater = true
+
+	local result = workspace:Raycast(root.Position + Vector3.new(0, 1.2, 0), offset, params)
+	if result and not result.Instance:IsDescendantOf(model) then
+		return false, "Your snatch hook needs a clear path."
+	end
+
+	return true
+end
+
+local function clearCarryPresentation(player, state, carry)
+	if state and state.CarryVisuals then
+		for _, item in pairs(state.CarryVisuals) do
+			if typeof(item) == "Instance" and item.Parent then
+				item:Destroy()
+			end
+		end
+		state.CarryVisuals = nil
+	end
+
+	if player then
+		player:SetAttribute("CarryRarity", nil)
+		player:SetAttribute("CarryVictimName", nil)
+		player:SetAttribute("CarryStartedServerTime", nil)
+		player:SetAttribute("CarryExpiresServerTime", nil)
+	end
+
+	local victim = carry and carry.Victim
+	if victim then
+		victim:SetAttribute("StickmanThreatened", nil)
+		victim:SetAttribute("ThreatRarity", nil)
+		victim:SetAttribute("ThreatCarrierName", nil)
+		victim:SetAttribute("ThreatExpiresServerTime", nil)
+		threatState(victim, false)
+	end
+end
+
+local function startCarryPresentation(player, state, model, rarity, victim)
+	clearCarryPresentation(player, state)
+
+	local root = characterRoot(player)
+	local target = model and model.PrimaryPart
+	if root and target then
+		local originAttachment = Instance.new("Attachment")
+		originAttachment.Name = "SnatchHookOrigin"
+		originAttachment.Position = Vector3.new(0, 0.25, -0.7)
+		originAttachment.Parent = root
+
+		local targetAttachment = Instance.new("Attachment")
+		targetAttachment.Name = "SnatchHookTarget"
+		targetAttachment.Parent = target
+
+		local beam = Instance.new("Beam")
+		beam.Name = "SnatchTether"
+		beam.Attachment0 = originAttachment
+		beam.Attachment1 = targetAttachment
+		beam.Width0 = Config.TETHER_WIDTH
+		beam.Width1 = Config.TETHER_WIDTH * 0.7
+		beam.FaceCamera = true
+		beam.Segments = 12
+		beam.LightEmission = 0.9
+		beam.Color = ColorSequence.new(rarity.Color, Color3.fromRGB(255, 255, 255))
+		beam.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.08),
+			NumberSequenceKeypoint.new(1, 0.28),
+		})
+		beam.Parent = root
+
+		local highlight = Instance.new("Highlight")
+		highlight.Name = "SnatchCarryHighlight"
+		highlight.FillColor = rarity.Color
+		highlight.FillTransparency = 0.82
+		highlight.OutlineColor = rarity.Color
+		highlight.OutlineTransparency = 0.05
+		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		highlight.Parent = model
+
+		state.CarryVisuals = {
+			OriginAttachment = originAttachment,
+			TargetAttachment = targetAttachment,
+			Beam = beam,
+			Highlight = highlight,
+		}
+	end
+
+	local expiresServerTime = workspace:GetServerTimeNow() + Config.CARRY_TIMEOUT_SECONDS
+	player:SetAttribute("CarryRarity", rarity.Name)
+	player:SetAttribute("CarryVictimName", victim and victim.DisplayName or "")
+	player:SetAttribute("CarryStartedServerTime", workspace:GetServerTimeNow())
+	player:SetAttribute("CarryExpiresServerTime", expiresServerTime)
+
+	if victim then
+		victim:SetAttribute("StickmanThreatened", true)
+		victim:SetAttribute("ThreatRarity", rarity.Name)
+		victim:SetAttribute("ThreatCarrierName", player.DisplayName)
+		victim:SetAttribute("ThreatExpiresServerTime", expiresServerTime)
+		threatState(victim, true, string.format("%s is snatching your %s stickman!", player.DisplayName, rarity.Name))
 	end
 end
 
@@ -217,6 +357,8 @@ local function makePlot(index, position)
 	shield.CFrame = CFrame.new(position + Vector3.new(0, 5, 0))
 	shield.Anchored = true
 	shield.CanCollide = false
+	shield.CanQuery = false
+	shield.CanTouch = false
 	shield.Transparency = 1
 	shield.Material = Enum.Material.ForceField
 	shield.Color = Color3.fromRGB(105, 100, 255)
@@ -431,6 +573,7 @@ local function createStickman(rarity)
 	model:SetAttribute("StealReadyAt", 0)
 	model:SetAttribute("CarrierUserId", 0)
 	model:SetAttribute("PreviousOwnerUserId", 0)
+	model:SetAttribute("TransferState", "Market")
 	model:SetAttribute("RarityRank", rarity.Rank or 1)
 
 	local root = Instance.new("Part")
@@ -506,8 +649,8 @@ local function createStickman(rarity)
 	prompt.ActionText = "Recruit"
 	prompt.ObjectText = rarity.Name .. " Stickman"
 	prompt.HoldDuration = 0.35
-	prompt.MaxActivationDistance = 10
-	prompt.RequiresLineOfSight = false
+	prompt.MaxActivationDistance = Config.SNATCH_INTERACTION_RANGE
+	prompt.RequiresLineOfSight = true
 	prompt.Parent = root
 
 	model.Parent = world
@@ -534,6 +677,12 @@ local function createStickman(rarity)
 		end
 		if not canInteract(player) then
 			toast(player, "Loading your profile — one moment.")
+			return
+		end
+
+		local canReach, reachMessage = canReachStickman(player, model, Config.SNATCH_INTERACTION_RANGE)
+		if not canReach then
+			toast(player, reachMessage)
 			return
 		end
 
@@ -570,6 +719,7 @@ local function createStickman(rarity)
 			state.Profile.SessionRecruits.Value += 1
 			model:SetAttribute("OwnerUserId", player.UserId)
 			model:SetAttribute("StealReadyAt", os.clock() + Config.STEAL_COOLDOWN)
+			model:SetAttribute("TransferState", "Owned")
 			prompt.ActionText = "Snatch"
 			prompt.ObjectText = rarity.Name .. " Stickman"
 			reflowSidekicks(state)
@@ -624,19 +774,25 @@ local function createStickman(rarity)
 			humanoid.WalkSpeed = Config.CARRY_WALK_SPEED
 		end
 
+		local carryStartedAt = os.clock()
 		state.Carrying = {
 			Model = model,
 			Victim = victim,
 			VictimState = victimState,
+			StartedAt = carryStartedAt,
+			ExpiresAt = carryStartedAt + Config.CARRY_TIMEOUT_SECONDS,
 		}
 
 		model:SetAttribute("CarrierUserId", player.UserId)
 		model:SetAttribute("PreviousOwnerUserId", ownerUserId)
+		model:SetAttribute("TransferState", "InTransit")
 		prompt.ActionText = "Recover"
-		prompt.ObjectText = rarity.Name .. " in transit"
+		prompt.ObjectText = rarity.Name .. " • HOOKED"
 		prompt.HoldDuration = Config.RECOVER_HOLD_DURATION
+		prompt.MaxActivationDistance = Config.RECOVER_INTERACTION_RANGE
+		startCarryPresentation(player, state, model, rarity, victim)
 
-		toast(victim, player.DisplayName .. " grabbed your " .. rarity.Name .. " stickman — catch them!")
+		toast(victim, player.DisplayName .. " hooked your " .. rarity.Name .. " stickman — catch them!")
 		toast(player, "STOLEN! Escape to your green SECURE pad.")
 		carryState(player, true, "ESCAPE! Reach your green SECURE pad before the owner recovers it.")
 	end)
@@ -662,6 +818,13 @@ recoverCarry = function(victim, carrier)
 		return
 	end
 
+	local canRecover, recoverMessage = canReachStickman(victim, model, Config.RECOVER_INTERACTION_RANGE, carrier.Character)
+	if not canRecover then
+		toast(victim, recoverMessage)
+		return
+	end
+
+	clearCarryPresentation(carrier, carrierState, carry)
 	carrierState.Carrying = nil
 	if carrierState.Profile then
 		carrierState.Profile.CurrentStreak.Value = 0
@@ -674,19 +837,21 @@ recoverCarry = function(victim, carrier)
 	model:SetAttribute("PreviousOwnerUserId", 0)
 	model:SetAttribute("OwnerUserId", victim.UserId)
 	model:SetAttribute("StealReadyAt", os.clock() + Config.STEAL_COOLDOWN)
+	model:SetAttribute("TransferState", "Owned")
 
 	local prompt = model.PrimaryPart and model.PrimaryPart:FindFirstChild("ActionPrompt")
 	if prompt then
 		prompt.ActionText = "Snatch"
 		prompt.ObjectText = (model:GetAttribute("Rarity") or "Stickman") .. " Stickman"
 		prompt.HoldDuration = 0.35
+		prompt.MaxActivationDistance = Config.SNATCH_INTERACTION_RANGE
 	end
 
 	table.insert(victimState.Sidekicks, model)
 	reflowSidekicks(victimState)
 
-	toast(victim, "Recovered! Your stickman is back.")
-	toast(carrier, victim.DisplayName .. " recovered the stickman.")
+	toast(victim, "HOOK BROKEN! Your stickman is back.")
+	toast(carrier, victim.DisplayName .. " broke your snatch hook.")
 end
 
 secureCarry = function(player)
@@ -698,12 +863,14 @@ secureCarry = function(player)
 	local carry = state.Carrying
 	local model = carry.Model
 	if not model or not model.Parent then
+		clearCarryPresentation(player, state, carry)
 		state.Carrying = nil
 		restoreWalkSpeed(player, state)
 		carryState(player, false)
 		return
 	end
 
+	clearCarryPresentation(player, state, carry)
 	state.Carrying = nil
 	restoreWalkSpeed(player, state)
 	carryState(player, false)
@@ -712,12 +879,14 @@ secureCarry = function(player)
 	model:SetAttribute("PreviousOwnerUserId", 0)
 	model:SetAttribute("OwnerUserId", player.UserId)
 	model:SetAttribute("StealReadyAt", os.clock() + Config.STEAL_COOLDOWN)
+	model:SetAttribute("TransferState", "Owned")
 
 	local prompt = model.PrimaryPart and model.PrimaryPart:FindFirstChild("ActionPrompt")
 	if prompt then
 		prompt.ActionText = "Snatch"
 		prompt.ObjectText = (model:GetAttribute("Rarity") or "Stickman") .. " Stickman"
 		prompt.HoldDuration = 0.35
+		prompt.MaxActivationDistance = Config.SNATCH_INTERACTION_RANGE
 	end
 
 	table.insert(state.Sidekicks, model)
@@ -749,6 +918,7 @@ dropCarry = function(player, message)
 
 	local carry = state.Carrying
 	local model = carry.Model
+	clearCarryPresentation(player, state, carry)
 	state.Carrying = nil
 	if state.Profile then
 		state.Profile.CurrentStreak.Value = 0
@@ -771,10 +941,12 @@ dropCarry = function(player, message)
 	if victim and victimState and victim.Parent == Players then
 		model:SetAttribute("OwnerUserId", victim.UserId)
 		model:SetAttribute("StealReadyAt", os.clock() + Config.STEAL_COOLDOWN)
+		model:SetAttribute("TransferState", "Owned")
 		if prompt then
 			prompt.ActionText = "Snatch"
 			prompt.ObjectText = (model:GetAttribute("Rarity") or "Stickman") .. " Stickman"
 			prompt.HoldDuration = 0.35
+			prompt.MaxActivationDistance = Config.SNATCH_INTERACTION_RANGE
 		end
 		table.insert(victimState.Sidekicks, model)
 		reflowSidekicks(victimState)
@@ -782,10 +954,12 @@ dropCarry = function(player, message)
 	else
 		model:SetAttribute("OwnerUserId", 0)
 		model:SetAttribute("StealReadyAt", 0)
+		model:SetAttribute("TransferState", "Market")
 		if prompt then
 			prompt.ActionText = "Recruit"
 			prompt.ObjectText = (model:GetAttribute("Rarity") or "Stickman") .. " Stickman"
 			prompt.HoldDuration = 0.35
+			prompt.MaxActivationDistance = Config.SNATCH_INTERACTION_RANGE
 		end
 		model:PivotTo(CFrame.new(rng:NextNumber(-12, 12), 3.2, rng:NextNumber(-30, 30)))
 	end
@@ -916,10 +1090,12 @@ local function restoreSavedCollection(player, state)
 			local model = createStickman(rarity)
 			model:SetAttribute("OwnerUserId", player.UserId)
 			model:SetAttribute("StealReadyAt", os.clock() + Config.REJOIN_STEAL_PROTECTION)
+			model:SetAttribute("TransferState", "Owned")
 			local prompt = model.PrimaryPart and model.PrimaryPart:FindFirstChild("ActionPrompt")
 			if prompt then
 				prompt.ActionText = "Snatch"
 				prompt.ObjectText = rarity.Name .. " Stickman"
+				prompt.MaxActivationDistance = Config.SNATCH_INTERACTION_RANGE
 			end
 			table.insert(state.Sidekicks, model)
 		end
@@ -985,6 +1161,7 @@ Players.PlayerAdded:Connect(function(player)
 		JoinProtectedUntil = os.clock() + Config.JOIN_PROTECTION_SECONDS,
 		Carrying = nil,
 		CarryOriginalWalkSpeed = nil,
+		CarryVisuals = nil,
 		Restoring = false,
 	}
 	playerState[player] = state
@@ -1059,6 +1236,8 @@ RunService.Heartbeat:Connect(function()
 
 			if not root or not humanoid or humanoid.Health <= 0 or not model or not model.Parent then
 				dropCarry(player, "Escape failed — the stickman returned.")
+			elseif carry.ExpiresAt and os.clock() >= carry.ExpiresAt then
+				dropCarry(player, "HOOK EXPIRED — the stickman returned.")
 			else
 				model:PivotTo(root.CFrame * CFrame.new(0, 3.1, 2.5) * CFrame.Angles(0, math.rad(180), 0))
 
