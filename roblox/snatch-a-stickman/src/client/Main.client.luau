@@ -4,7 +4,9 @@ local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-local toastRemote = ReplicatedStorage:WaitForChild("GameRemotes"):WaitForChild("Toast")
+local remotes = ReplicatedStorage:WaitForChild("GameRemotes")
+local toastRemote = remotes:WaitForChild("Toast")
+local carryRemote = remotes:WaitForChild("CarryState")
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "SnatchAStickmanUI"
@@ -42,12 +44,34 @@ local coinCorner = Instance.new("UICorner")
 coinCorner.CornerRadius = UDim.new(0, 12)
 coinCorner.Parent = coinsLabel
 
+local carryBanner = Instance.new("TextLabel")
+carryBanner.AnchorPoint = Vector2.new(0.5, 0)
+carryBanner.Position = UDim2.fromScale(0.5, 0.105)
+carryBanner.Size = UDim2.new(0.72, 0, 0, 54)
+carryBanner.BackgroundColor3 = Color3.fromRGB(35, 170, 85)
+carryBanner.BackgroundTransparency = 0.08
+carryBanner.TextColor3 = Color3.fromRGB(255, 255, 255)
+carryBanner.TextScaled = true
+carryBanner.Font = Enum.Font.GothamBlack
+carryBanner.Text = "ESCAPE TO YOUR GREEN SECURE PAD!"
+carryBanner.Visible = false
+carryBanner.Parent = gui
+
+local carryCorner = Instance.new("UICorner")
+carryCorner.CornerRadius = UDim.new(0, 14)
+carryCorner.Parent = carryBanner
+
+local carryPadding = Instance.new("UIPadding")
+carryPadding.PaddingLeft = UDim.new(0, 14)
+carryPadding.PaddingRight = UDim.new(0, 14)
+carryPadding.Parent = carryBanner
+
 local hint = Instance.new("TextLabel")
 hint.AnchorPoint = Vector2.new(0.5, 1)
 hint.Position = UDim2.fromScale(0.5, 0.97)
-hint.Size = UDim2.fromOffset(560, 38)
+hint.Size = UDim2.new(0.86, 0, 0, 38)
 hint.BackgroundTransparency = 1
-hint.Text = "Recruit from the market • Earn passive coins • Snatch rivals • Shield your base"
+hint.Text = "Recruit • Earn • Snatch • Escape to SECURE • Shield your base"
 hint.TextColor3 = Color3.fromRGB(230, 232, 240)
 hint.TextScaled = true
 hint.Font = Enum.Font.GothamMedium
@@ -56,7 +80,7 @@ hint.Parent = gui
 local toast = Instance.new("TextLabel")
 toast.AnchorPoint = Vector2.new(0.5, 0.5)
 toast.Position = UDim2.fromScale(0.5, 0.76)
-toast.Size = UDim2.fromOffset(460, 54)
+toast.Size = UDim2.new(0.72, 0, 0, 54)
 toast.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
 toast.BackgroundTransparency = 1
 toast.TextTransparency = 1
@@ -79,6 +103,13 @@ end
 
 refreshCoins()
 coins:GetPropertyChangedSignal("Value"):Connect(refreshCoins)
+
+carryRemote.OnClientEvent:Connect(function(active, message)
+	carryBanner.Visible = active == true
+	if active and message and message ~= "" then
+		carryBanner.Text = tostring(message)
+	end
+end)
 
 local toastSerial = 0
 toastRemote.OnClientEvent:Connect(function(message)
