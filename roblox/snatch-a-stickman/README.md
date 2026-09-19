@@ -1,73 +1,124 @@
-# Snatch a Stickman
+# Snatch the Stickman
 
-An original Roblox social-collection game prototype built around an instantly readable loop:
+**Snatch the Stickman** is an original Roblox social-collection game built around a readable risk/reward loop:
 
-1. Stickmen spawn in the central market.
-2. Players recruit them with coins.
-3. Secured stickmen generate passive income.
-4. Rival players can grab an unshielded stickman.
-5. A steal is **not instant anymore**: the thief has to physically escape across the map.
-6. The owner can catch up and recover the stickman before it is secured.
-7. The thief only becomes the new owner after reaching their glowing green **SECURE** pad.
-8. Each base has a timed shield with a cooldown.
-9. Higher rarities cost more, generate more income, and create higher-stakes escape moments.
+1. Recruit stickmen from the central market.
+2. Grow passive income and upgrade your base.
+3. Raid an unshielded rival and grab one of their stickmen.
+4. Escape across the map while moving more slowly.
+5. Reach your green **SECURE** pad before the owner recovers the stickman.
+6. Build a better collection, complete session missions, and push a longer snatch streak.
 
-The goal is a simple, clip-friendly premise with social tension and visible progression, without copying another Roblox game's private code or assets.
+The project uses original code and runtime-generated geometry; it does not copy proprietary code or assets from other Roblox experiences.
 
-## Current build
+## 50-point improvement pass
 
-- Runtime-generated map; no external models required
-- 6 player bases
-- Central stickman market
-- 5 rarity tiers
-- Passive coin economy
-- Recruit interactions using ProximityPrompt
-- **Carry-and-escape stealing system**
-- **Owner recovery interaction during an escape**
-- **Movement penalty while carrying**
-- **Green secure zone at every base**
-- **Escape bonus for successful steals**
-- Base shield with cooldown
-- Server-authoritative coin, carry, and ownership logic
-- Responsive custom HUD with escape-state banner
-- Death / disconnect recovery handling
-- No paid assets
-- Session-only progress for the current playtest
+This branch includes a cohesive launch-readiness pass with exactly 50 concrete improvements:
+
+1. Renamed the player-facing game identity to **Snatch the Stickman**.
+2. Renamed the Rojo project to `SnatchTheStickman`.
+3. Renamed the runtime world folder to `SnatchTheStickmanWorld`.
+4. Added persistent stickman collection data.
+5. Added safe restoration of saved collections on join.
+6. Added rarity validation while restoring saved collections.
+7. Added a hard collection-data size limit before saving.
+8. Added persistent income-upgrade levels.
+9. Added persistent capacity-upgrade levels.
+10. Added persistent shield-upgrade levels.
+11. Added persistent lifetime recruit totals.
+12. Added persistent lifetime successful-snatch totals.
+13. Added persistent best-snatch-streak tracking.
+14. Added persistent lifetime coins-earned tracking.
+15. Kept the existing DataStore name so older saved coins migrate forward.
+16. Added a profile-ready interaction gate so purchases/raids cannot race a load.
+17. Added fail-open playability when DataStore reads fail.
+18. Prevented failed initial loads from overwriting valid saved data.
+19. Added retry/backoff for DataStore reads and writes.
+20. Increased autosave frequency to 45 seconds.
+21. Kept forced saves on player exit and server shutdown.
+22. Added replicated save-state feedback for the HUD.
+23. Added rejoin steal protection for restored stickmen.
+24. Added temporary base protection when a player first joins.
+25. Added capacity progression from 8 to 10 to 12 crew slots.
+26. Added permanent passive-income multipliers.
+27. Added shield-duration progression.
+28. Added shield-cooldown progression.
+29. Added three physical upgrade stations at every owned base.
+30. Added owner-only validation for upgrade purchases.
+31. Added price and max-level feedback on upgrade pads.
+32. Added a recruit session mission.
+33. Added an earn-coins session mission.
+34. Added a successful-snatch session mission.
+35. Added one-time session mission rewards.
+36. Added duplicate-claim protection for mission rewards.
+37. Added a successful-snatch streak system.
+38. Added scaling escape bonuses for longer streaks.
+39. Added streak reset when a steal is recovered or otherwise fails.
+40. Added a hard cap on unowned market stock.
+41. Increased and stabilized initial market stock.
+42. Added periodic forced affordable Common spawns.
+43. Added server-wide announcements for Legendary and Glitched market spawns.
+44. Added glow treatment to Epic, Legendary, and Glitched stickmen.
+45. Improved stickman info billboards with cleaner income timing text.
+46. Added dynamic base signs showing crew capacity and income rate.
+47. Rebuilt the HUD with live coins, income, crew, streak, missions, and save status.
+48. Added live shield/join-protection countdowns and distance-to-SECURE feedback.
+49. Added mobile/small-screen HUD adaptation and coin-gain animation.
+50. Added a launch-polish world pass: evening lighting, atmosphere, bloom, rails, market outline, title board, lit routes, lamps, and a center beacon.
+
+## Current gameplay systems
+
+- Six player bases
+- Central rarity-based stickman market
+- Five rarity tiers: Common, Rare, Epic, Legendary, and Glitched
+- Persistent coins, collections, upgrades, and lifetime stats
+- Passive coin economy with permanent income upgrades
+- Expandable crew capacity
+- Carry-and-escape stealing
+- Owner recovery during an escape
+- Movement penalty while carrying
+- Green SECURE zones
+- Streak-scaled escape bonuses
+- Timed base shield with permanent upgrades
+- Join and rejoin protection windows
+- Three session missions with coin rewards
+- Market stock pacing and affordable-spawn protection
+- Responsive custom HUD
+- Runtime-generated world polish
+- Death/disconnect carry recovery
+- Server-authoritative gameplay state
+- No paid or copied assets
 
 ## Open in Roblox Studio
 
 This project is arranged for **Rojo**.
 
-1. Install Rojo and the Rojo Roblox Studio plugin.
-2. In this folder, run:
-   \`\`\`bash
-   rojo serve
-   \`\`\`
-3. Open a new Baseplate in Roblox Studio.
-4. Connect the Rojo plugin to the running project.
-5. Press **Play** or use a local multi-player test with 2-6 players.
+```bash
+rojo serve
+```
 
-The world builds itself when the server starts.
+Open a Baseplate in Roblox Studio, connect the Rojo plugin, and start a local multiplayer test with 2–6 players. The world builds itself when the server starts.
 
-## Core playtest
+For persistence testing in Studio, publish the experience and enable Studio access to API Services.
 
-Test with at least two players:
+## Core multiplayer verification
 
-- Recruit a stickman.
-- Wait for its short steal protection to expire.
-- Have the rival grab it.
-- The rival should move more slowly while carrying it.
-- The original owner can run close and hold **Recover** on the carried stickman.
-- If the thief reaches their own green **SECURE** pad first, ownership transfers and the thief gets an escape bonus.
-- Dying before securing should return the stickman to its prior owner.
+Test these flows with at least two players:
 
-## What the next major updates should target
+- Join and confirm the profile reaches a ready/saved state.
+- Recruit multiple rarities and confirm they reappear after rejoining.
+- Buy all three upgrade types and confirm they persist.
+- Confirm capacity upgrades allow 10 and then 12 stickmen.
+- Confirm income upgrades increase the HUD income rate and actual payouts.
+- Confirm shield upgrades improve duration/cooldown.
+- Confirm join protection blocks immediate raids.
+- Let steal protection expire, grab a rival stickman, and verify the carry slowdown.
+- Recover a carried stickman and confirm the thief's streak resets.
+- Secure a stolen stickman and confirm ownership, bonus coins, mission progress, and streak update.
+- Complete all three session missions and confirm each reward only pays once.
+- Verify market stock remains bounded over a long server session.
+- Rejoin and confirm coins, crew, upgrade levels, and lifetime stats survive.
 
-1. Persistence and session recovery
-2. Mutations / visual traits that create jackpot moments
-3. Rebirth and long-term progression
-4. Better map art, movement juice, sound, VFX, and animation
-5. First-session quests and rewards
-6. Mobile-first interaction polish
-7. Economy / retention analytics hooks
-8. Private-server and friend-group social features
+## Next highest-impact targets
+
+The strongest next step is a **collection-book + rebirth/prestige layer**: a proper rarity catalog, discovery completion, duplicate value, prestige resets with permanent multipliers, and analytics around first-session completion. After that, animation/audio/VFX and a custom authored map would provide the biggest presentation lift.

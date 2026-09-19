@@ -1,29 +1,52 @@
--- Durable economy persistence for Snatch a Stickman.
--- Main.server.luau remains authoritative for gameplay; this service only loads/saves
--- the replicated Coins value and never trusts client input.
+-- Durable profile persistence for Snatch the Stickman.
+-- Gameplay remains server-authoritative; no client can write profile state directly.
 
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+
 local STORE_NAME = "SnatchAStickman_PlayerData_v1"
-local AUTOSAVE_SECONDS = 60
+local AUTOSAVE_SECONDS = 45
 local MAX_RETRIES = 4
-local MAX_REASONABLE_COINS = 2_000_000_000
+local MAX_REASONABLE_NUMBER = 2_000_000_000
+local MAX_COLLECTION_BYTES = 2048
 
 local store = DataStoreService:GetDataStore(STORE_NAME)
 local sessions = {}
 local shuttingDown = false
 
+local persistentFields = {
+	"IncomeLevel",
+	"CapacityLevel",
+	"ShieldLevel",
+	"TotalSnatches",
+	"BestStreak",
+	"TotalRecruits",
+	"LifetimeCoinsEarned",
+}
+
 local function keyFor(player)
 	return "player_" .. tostring(player.UserId)
 end
 
-local function sanitizeCoins(value)
+local function sanitizeInteger(value, minimum, maximum)
 	if type(value) ~= "number" or value ~= value then
 		return nil
 	end
-	return math.clamp(math.floor(value), 0, MAX_REASONABLE_COINS)
+	return math.clamp(math.floor(value), minimum, maximum)
+end
+
+local function sanitizeCollection(value)
+	if type(value) ~= "string" or #value > MAX_COLLECTION_BYTES then
+		return nil
+	end
+	if value == "" then
+		return "[]"
+	end
+	return value
 end
 
 local function retry(label, callback)
@@ -42,29 +65,129 @@ local function retry(label, callback)
 	return false, lastError
 end
 
-local function waitForCoins(player)
+local function waitForProfile(player)
 	local leaderstats = player:WaitForChild("leaderstats", 15)
-	if not leaderstats then
+	local profile = player:WaitForChild("Profile", 15)
+	if not leaderstats or not profile then
 		return nil
 	end
+
 	local coins = leaderstats:WaitForChild("Coins", 15)
-	if coins and coins:IsA("IntValue") then
-		return coins
+	local collection = profile:WaitForChild("CollectionData", 15)
+	if not coins or not coins:IsA("IntValue") or not collection or not collection:IsA("StringValue") then
+		return nil
 	end
-	return nil
+
+	for _, name in ipairs(persistentFields) do
+		local value = profile:WaitForChild(name, 15)
+		if not value or not value:IsA("IntValue") then
+			return nil
+		end
+	end
+
+	return {
+		Coins = coins,
+		Profile = profile,
+		Collection = collection,
+	}
+end
+
+local function maxLevelFor(name)
+	if name == "IncomeLevel" then
+		return #Config.INCOME_MULTIPLIERS - 1
+	elseif name == "CapacityLevel" then
+		return #Config.CAPACITY_BY_LEVEL - 1
+	elseif name == "ShieldLevel" then
+		return #Config.SHIELD_DURATION_BY_LEVEL - 1
+	end
+	return MAX_REASONABLE_NUMBER
+end
+
+local function snapshot(session)
+	local profile = session.Profile
+	local data = {
+		Version = 2,
+		Coins = sanitizeInteger(session.Coins.Value, 0, MAX_REASONABLE_NUMBER) or 0,
+		CollectionData = sanitizeCollection(session.Collection.Value) or "[]",
+		UpdatedAt = os.time(),
+	}
+
+	for _, name in ipairs(persistentFields) do
+		local value = profile:FindFirstChild(name)
+		if value then
+			data[name] = sanitizeInteger(value.Value, 0, maxLevelFor(name)) or 0
+		end
+	end
+	return data
+end
+
+local function applyLoadedData(session, data)
+	if type(data) ~= "table" then
+		return
+	end
+
+	local savedCoins = sanitizeInteger(data.Coins, 0, MAX_REASONABLE_NUMBER)
+	if savedCoins then
+		session.Coins.Value = math.max(session.Coins.Value, savedCoins)
+	end
+
+	local savedCollection = sanitizeCollection(data.CollectionData)
+	if savedCollection then
+		session.Collection.Value = savedCollection
+	end
+
+	for _, name in ipairs(persistentFields) do
+		local value = session.Profile:FindFirstChild(name)
+		local saved = sanitizeInteger(data[name], 0, maxLevelFor(name))
+		if value and saved then
+			value.Value = math.max(value.Value, saved)
+		end
+	end
+end
+
+local function connectDirtySignals(player, session)
+	session.Coins.Changed:Connect(function()
+		if sessions[player] == session and session.Loaded then
+			session.Dirty = true
+		end
+	end)
+	session.Collection.Changed:Connect(function()
+		if sessions[player] == session and session.Loaded then
+			session.Dirty = true
+		end
+	end)
+	for _, name in ipairs(persistentFields) do
+		local value = session.Profile:FindFirstChild(name)
+		if value then
+			value.Changed:Connect(function()
+				if sessions[player] == session and session.Loaded then
+					session.Dirty = true
+				end
+			end)
+		end
+	end
 end
 
 local function loadPlayer(player)
-	local coins = waitForCoins(player)
-	if not coins or player.Parent ~= Players then
+	player:SetAttribute("DataLoaded", false)
+	player:SetAttribute("PersistenceAvailable", false)
+	player:SetAttribute("PersistenceStatus", "Loading")
+
+	local handles = waitForProfile(player)
+	if not handles or player.Parent ~= Players then
+		if player.Parent == Players then
+			player:SetAttribute("DataReady", true)
+			player:SetAttribute("PersistenceStatus", "Unavailable")
+		end
 		return
 	end
 
 	local session = {
-		Coins = coins,
+		Coins = handles.Coins,
+		Profile = handles.Profile,
+		Collection = handles.Collection,
 		Loaded = false,
 		Dirty = false,
-		LastSavedCoins = coins.Value,
 	}
 	sessions[player] = session
 
@@ -76,28 +199,23 @@ local function loadPlayer(player)
 		return
 	end
 
-	if ok and type(data) == "table" then
-		local savedCoins = sanitizeCoins(data.Coins)
-		if savedCoins then
-			-- Never let a delayed load erase money earned while joining.
-			coins.Value = math.max(coins.Value, savedCoins)
-		end
-	elseif not ok then
-		-- Fail open: gameplay remains available. We deliberately avoid saving this
-		-- session until a successful load so an outage cannot overwrite good data.
-		warn("[Persistence] Data unavailable for " .. player.Name .. "; persistence disabled for this session")
+	if not ok then
+		-- Fail open for playability, but never save a session that failed its initial read.
+		player:SetAttribute("DataReady", true)
+		player:SetAttribute("PersistenceStatus", "Unavailable")
+		warn("[Persistence] Data unavailable for " .. player.Name .. "; saving disabled for this session")
 		return
 	end
 
+	applyLoadedData(session, data)
 	session.Loaded = true
-	session.LastSavedCoins = coins.Value
-	player:SetAttribute("DataLoaded", true)
+	session.Dirty = false
+	connectDirtySignals(player, session)
 
-	coins.Changed:Connect(function()
-		if sessions[player] == session and session.Loaded then
-			session.Dirty = true
-		end
-	end)
+	player:SetAttribute("DataLoaded", true)
+	player:SetAttribute("DataReady", true)
+	player:SetAttribute("PersistenceAvailable", true)
+	player:SetAttribute("PersistenceStatus", "Saved")
 end
 
 local function savePlayer(player, force)
@@ -105,29 +223,31 @@ local function savePlayer(player, force)
 	if not session or not session.Loaded then
 		return false
 	end
-
-	local currentCoins = sanitizeCoins(session.Coins.Value)
-	if not currentCoins then
-		return false
-	end
-	if not force and not session.Dirty and currentCoins == session.LastSavedCoins then
+	if not force and not session.Dirty then
 		return true
 	end
+
+	local data = snapshot(session)
+	player:SetAttribute("PersistenceStatus", "Saving")
 
 	local ok = retry("save " .. player.Name, function()
 		return store:UpdateAsync(keyFor(player), function(oldData)
 			oldData = type(oldData) == "table" and oldData or {}
-			oldData.Coins = currentCoins
-			oldData.Version = 1
-			oldData.UpdatedAt = os.time()
+			for key, value in pairs(data) do
+				oldData[key] = value
+			end
 			return oldData
 		end)
 	end)
 
-	if ok and sessions[player] == session then
-		session.LastSavedCoins = currentCoins
-		session.Dirty = false
-		player:SetAttribute("LastDataSave", os.time())
+	if sessions[player] == session then
+		if ok then
+			session.Dirty = false
+			player:SetAttribute("LastDataSave", os.time())
+			player:SetAttribute("PersistenceStatus", "Saved")
+		else
+			player:SetAttribute("PersistenceStatus", "Error")
+		end
 	end
 	return ok
 end

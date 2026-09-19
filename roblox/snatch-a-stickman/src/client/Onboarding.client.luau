@@ -5,7 +5,21 @@ local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-local world = workspace:WaitForChild("SnatchAStickmanWorld")
+
+while player.Parent and player:GetAttribute("DataReady") ~= true do
+	task.wait(0.1)
+end
+
+local profile = player:WaitForChild("Profile")
+local totalRecruits = profile:WaitForChild("TotalRecruits")
+local collectionData = profile:WaitForChild("CollectionData")
+
+-- Returning players should not be forced through first-session guidance every join.
+if totalRecruits.Value > 0 or collectionData.Value ~= "[]" then
+	return
+end
+
+local world = workspace:WaitForChild("SnatchTheStickmanWorld")
 local leaderstats = player:WaitForChild("leaderstats")
 local coins = leaderstats:WaitForChild("Coins")
 
@@ -45,7 +59,7 @@ padding.Parent = card
 local heading = Instance.new("TextLabel")
 heading.Size = UDim2.new(1, 0, 0, 24)
 heading.BackgroundTransparency = 1
-heading.Text = "FIRST RUN  •  1 / 4"
+heading.Text = "GET STARTED  •  1 / 4"
 heading.TextColor3 = Color3.fromRGB(113, 255, 159)
 heading.TextXAlignment = Enum.TextXAlignment.Left
 heading.Font = Enum.Font.GothamBold
@@ -152,8 +166,8 @@ end
 local function showStep(index)
 	step = index
 	if step > #steps then
-		heading.Text = "FIRST RUN COMPLETE"
-		objective.Text = "You're ready to snatch."
+		heading.Text = "READY TO SNATCH"
+		objective.Text = "You know the loop."
 		detail.Text = "Build income, protect your best stickmen, and escape with high-value rivals."
 		TweenService:Create(bar, TweenInfo.new(0.25), {Size = UDim2.fromScale(1, 1)}):Play()
 		task.delay(4, function()
@@ -166,7 +180,7 @@ local function showStep(index)
 		return
 	end
 
-	heading.Text = string.format("FIRST RUN  •  %d / %d", step, #steps)
+	heading.Text = string.format("GET STARTED  •  %d / %d", step, #steps)
 	objective.Text = steps[step].Title
 	detail.Text = steps[step].Detail
 	TweenService:Create(bar, TweenInfo.new(0.22), {Size = UDim2.fromScale(step / #steps, 1)}):Play()

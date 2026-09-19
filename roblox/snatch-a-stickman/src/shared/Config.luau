@@ -1,26 +1,55 @@
 local Config = {}
 
+Config.GAME_NAME = "Snatch the Stickman"
 Config.STARTING_COINS = 120
 Config.PASSIVE_TICK = 2
-Config.SHIELD_SECONDS = 10
-Config.SHIELD_COOLDOWN = 35
-Config.MAX_SIDEKICKS = 8
+
+-- Crew progression
+Config.CAPACITY_BY_LEVEL = {8, 10, 12}
+Config.CAPACITY_UPGRADE_COSTS = {450, 1800}
+Config.MAX_SIDEKICKS = Config.CAPACITY_BY_LEVEL[#Config.CAPACITY_BY_LEVEL]
+
+Config.INCOME_MULTIPLIERS = {1, 1.20, 1.50, 1.85}
+Config.INCOME_UPGRADE_COSTS = {350, 1100, 3200}
+
+-- Defense progression
+Config.SHIELD_DURATION_BY_LEVEL = {10, 13, 16, 20}
+Config.SHIELD_COOLDOWN_BY_LEVEL = {35, 31, 27, 24}
+Config.SHIELD_UPGRADE_COSTS = {300, 950, 2800}
+Config.SHIELD_SECONDS = Config.SHIELD_DURATION_BY_LEVEL[1]
+Config.SHIELD_COOLDOWN = Config.SHIELD_COOLDOWN_BY_LEVEL[1]
+Config.JOIN_PROTECTION_SECONDS = 15
+Config.REJOIN_STEAL_PROTECTION = 10
+
+-- Market pacing
 Config.SPAWN_INTERVAL = 3.5
-Config.MARKET_LIFETIME = 40
-Config.STEAL_COOLDOWN = 7
+Config.MARKET_LIFETIME = 45
+Config.MARKET_MAX_STOCK = 18
+Config.INITIAL_MARKET_STOCK = 10
+Config.AFFORDABLE_SPAWN_EVERY = 5
+Config.STEAL_COOLDOWN = 8
 
 -- Escape-loop tuning
 Config.CARRY_WALK_SPEED = 12
 Config.SECURE_RADIUS = 9
 Config.RECOVER_HOLD_DURATION = 0.65
 Config.SECURE_BONUS_MULTIPLIER = 5
+Config.STREAK_BONUS_STEP = 0.12
+Config.STREAK_BONUS_CAP = 0.60
+
+-- Session missions
+Config.MISSIONS = {
+	Recruit = {Goal = 3, Reward = 150, Label = "Recruit 3 stickmen"},
+	Earn = {Goal = 500, Reward = 250, Label = "Earn $500"},
+	Snatch = {Goal = 1, Reward = 300, Label = "Secure 1 rival stickman"},
+}
 
 Config.RARITIES = {
-	{Name = "Common", Weight = 60, Cost = 25, Income = 2, Color = Color3.fromRGB(225, 225, 225)},
-	{Name = "Rare", Weight = 25, Cost = 80, Income = 7, Color = Color3.fromRGB(70, 170, 255)},
-	{Name = "Epic", Weight = 10, Cost = 240, Income = 20, Color = Color3.fromRGB(185, 90, 255)},
-	{Name = "Legendary", Weight = 4, Cost = 700, Income = 65, Color = Color3.fromRGB(255, 190, 40)},
-	{Name = "Glitched", Weight = 1, Cost = 2000, Income = 200, Color = Color3.fromRGB(255, 80, 190)},
+	{Name = "Common", Rank = 1, Weight = 60, Cost = 25, Income = 2, Color = Color3.fromRGB(225, 225, 225), Glow = false},
+	{Name = "Rare", Rank = 2, Weight = 25, Cost = 80, Income = 7, Color = Color3.fromRGB(70, 170, 255), Glow = false},
+	{Name = "Epic", Rank = 3, Weight = 10, Cost = 240, Income = 20, Color = Color3.fromRGB(185, 90, 255), Glow = true},
+	{Name = "Legendary", Rank = 4, Weight = 4, Cost = 700, Income = 65, Color = Color3.fromRGB(255, 190, 40), Glow = true},
+	{Name = "Glitched", Rank = 5, Weight = 1, Cost = 2000, Income = 200, Color = Color3.fromRGB(255, 80, 190), Glow = true},
 }
 
 return Config

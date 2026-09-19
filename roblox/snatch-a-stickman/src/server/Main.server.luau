@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
@@ -20,13 +21,13 @@ local carryRemote = remotes:FindFirstChild("CarryState") or Instance.new("Remote
 carryRemote.Name = "CarryState"
 carryRemote.Parent = remotes
 
-local world = workspace:FindFirstChild("SnatchAStickmanWorld")
+local world = workspace:FindFirstChild("SnatchTheStickmanWorld")
 if world then
 	world:Destroy()
 end
 
 world = Instance.new("Folder")
-world.Name = "SnatchAStickmanWorld"
+world.Name = "SnatchTheStickmanWorld"
 world.Parent = workspace
 
 local function makePart(name, size, cframe, color, material)
@@ -95,6 +96,85 @@ local function carryState(player, active, message)
 	end
 end
 
+local function broadcastToast(message)
+	for _, player in ipairs(Players:GetPlayers()) do
+		toast(player, message)
+	end
+end
+
+local function profileNumber(player, name, defaultValue)
+	local profile = player and player:FindFirstChild("Profile")
+	local value = profile and profile:FindFirstChild(name)
+	if value and value:IsA("IntValue") then
+		return value.Value
+	end
+	return defaultValue
+end
+
+local function getCapacity(player)
+	local level = math.clamp(profileNumber(player, "CapacityLevel", 0), 0, #Config.CAPACITY_BY_LEVEL - 1)
+	return Config.CAPACITY_BY_LEVEL[level + 1]
+end
+
+local function getIncomeMultiplier(player)
+	local level = math.clamp(profileNumber(player, "IncomeLevel", 0), 0, #Config.INCOME_MULTIPLIERS - 1)
+	return Config.INCOME_MULTIPLIERS[level + 1]
+end
+
+local function getShieldDuration(player)
+	local level = math.clamp(profileNumber(player, "ShieldLevel", 0), 0, #Config.SHIELD_DURATION_BY_LEVEL - 1)
+	return Config.SHIELD_DURATION_BY_LEVEL[level + 1]
+end
+
+local function getShieldCooldown(player)
+	local level = math.clamp(profileNumber(player, "ShieldLevel", 0), 0, #Config.SHIELD_COOLDOWN_BY_LEVEL - 1)
+	return Config.SHIELD_COOLDOWN_BY_LEVEL[level + 1]
+end
+
+local function canInteract(player)
+	return player and player.Parent == Players and player:GetAttribute("DataReady") == true
+end
+
+local function awardCoins(state, amount)
+	amount = math.max(0, math.floor(amount))
+	if amount <= 0 or not state then
+		return
+	end
+	state.Coins.Value += amount
+	if state.Profile then
+		state.Profile.SessionEarned.Value += amount
+		state.Profile.LifetimeCoinsEarned.Value += amount
+	end
+end
+
+local function refreshState(player, state)
+	if not player or not state or player.Parent ~= Players then
+		return
+	end
+
+	local baseIncome = 0
+	for _, model in ipairs(state.Sidekicks) do
+		if model and model.Parent then
+			baseIncome += model:GetAttribute("Income") or 0
+		end
+	end
+
+	local effectiveIncome = math.floor((baseIncome * getIncomeMultiplier(player)) + 0.5)
+	local capacity = getCapacity(player)
+	player:SetAttribute("CrewCount", #state.Sidekicks)
+	player:SetAttribute("Capacity", capacity)
+	player:SetAttribute("IncomePerTick", effectiveIncome)
+	player:SetAttribute("CurrentStreak", state.Profile and state.Profile.CurrentStreak.Value or 0)
+	player:SetAttribute("ShieldUntilServerTime", workspace:GetServerTimeNow() + math.max(0, state.ShieldUntil - os.clock()))
+	player:SetAttribute("ShieldReadyServerTime", workspace:GetServerTimeNow() + math.max(0, state.ShieldReadyAt - os.clock()))
+	player:SetAttribute("JoinProtectionUntilServerTime", workspace:GetServerTimeNow() + math.max(0, (state.JoinProtectedUntil or 0) - os.clock()))
+
+	local plot = openPlots[state.PlotIndex]
+	if plot and plot.Owner == player then
+		plot.Label.Text = string.format("%s's Base\n%d/%d • +$%d/tick", player.DisplayName, #state.Sidekicks, capacity, effectiveIncome)
+	end
+end
+
 local function makePlot(index, position)
 	local model = Instance.new("Model")
 	model.Name = "Plot" .. index
@@ -102,7 +182,7 @@ local function makePlot(index, position)
 
 	local floor = Instance.new("Part")
 	floor.Name = "Floor"
-	floor.Size = Vector3.new(42, 1, 28)
+	floor.Size = Vector3.new(42, 1, 34)
 	floor.CFrame = CFrame.new(position)
 	floor.Anchored = true
 	floor.Color = Color3.fromRGB(42, 46, 58)
@@ -112,7 +192,7 @@ local function makePlot(index, position)
 	local sign = Instance.new("Part")
 	sign.Name = "Sign"
 	sign.Size = Vector3.new(14, 5, 1)
-	sign.CFrame = CFrame.new(position + Vector3.new(0, 3, 13))
+	sign.CFrame = CFrame.new(position + Vector3.new(0, 3, 16))
 	sign.Anchored = true
 	sign.Color = Color3.fromRGB(19, 21, 28)
 	sign.Parent = model
@@ -133,7 +213,7 @@ local function makePlot(index, position)
 
 	local shield = Instance.new("Part")
 	shield.Name = "ShieldVisual"
-	shield.Size = Vector3.new(44, 10, 30)
+	shield.Size = Vector3.new(44, 10, 36)
 	shield.CFrame = CFrame.new(position + Vector3.new(0, 5, 0))
 	shield.Anchored = true
 	shield.CanCollide = false
@@ -145,7 +225,7 @@ local function makePlot(index, position)
 	local button = Instance.new("Part")
 	button.Name = "ShieldButton"
 	button.Size = Vector3.new(4, 1, 4)
-	button.CFrame = CFrame.new(position + Vector3.new(0, 1, -11))
+	button.CFrame = CFrame.new(position + Vector3.new(0, 1, -14))
 	button.Anchored = true
 	button.Color = Color3.fromRGB(110, 90, 255)
 	button.Material = Enum.Material.Neon
@@ -162,7 +242,7 @@ local function makePlot(index, position)
 	local securePad = Instance.new("Part")
 	securePad.Name = "SecurePad"
 	securePad.Size = Vector3.new(12, 0.7, 7)
-	securePad.CFrame = CFrame.new(position + Vector3.new(0, 0.9, 8))
+	securePad.CFrame = CFrame.new(position + Vector3.new(0, 0.9, 12))
 	securePad.Anchored = true
 	securePad.CanCollide = false
 	securePad.Color = Color3.fromRGB(65, 255, 140)
@@ -192,7 +272,7 @@ local function makePlot(index, position)
 		local row = math.floor((slotIndex - 1) / 4)
 		local column = (slotIndex - 1) % 4
 		local x = -12 + (column * 8)
-		local z = -4 + (row * 7)
+		local z = -7 + (row * 7)
 
 		local slot = Instance.new("Part")
 		slot.Name = tostring(slotIndex)
@@ -223,20 +303,29 @@ local function makePlot(index, position)
 			return
 		end
 
+		if not canInteract(player) then
+			toast(player, "Loading your profile — one moment.")
+			return
+		end
+
 		local now = os.clock()
 		if now < state.ShieldReadyAt then
 			toast(player, string.format("Shield recharging: %ds", math.ceil(state.ShieldReadyAt - now)))
 			return
 		end
 
-		state.ShieldUntil = now + Config.SHIELD_SECONDS
-		state.ShieldReadyAt = now + Config.SHIELD_COOLDOWN
+		local duration = getShieldDuration(player)
+		local cooldown = getShieldCooldown(player)
+		state.ShieldUntil = now + duration
+		state.ShieldReadyAt = now + cooldown
 		shield.Transparency = 0.72
-		toast(player, "Base shield active!")
+		refreshState(player, state)
+		toast(player, string.format("Base shield active for %ds!", duration))
 
-		task.delay(Config.SHIELD_SECONDS, function()
-			if state and state.ShieldUntil <= os.clock() then
+		task.delay(duration, function()
+			if playerState[player] == state and state.ShieldUntil <= os.clock() then
 				shield.Transparency = 1
+				refreshState(player, state)
 			end
 		end)
 	end)
@@ -262,6 +351,24 @@ local function weightedRarity()
 	end
 
 	return Config.RARITIES[1]
+end
+
+local function syncCollection(state)
+	if not state or not state.Profile or state.Restoring then
+		return
+	end
+
+	local encoded = {}
+	for _, owned in ipairs(state.Sidekicks) do
+		if owned and owned.Parent then
+			table.insert(encoded, tostring(owned:GetAttribute("Rarity") or "Common"))
+		end
+	end
+
+	local ok, json = pcall(HttpService.JSONEncode, HttpService, encoded)
+	if ok then
+		state.Profile.CollectionData.Value = json
+	end
 end
 
 local function removeSidekick(state, model)
@@ -293,6 +400,8 @@ local function reflowSidekicks(state)
 			owned:PivotTo(targetSlot.CFrame * CFrame.new(0, 3.2, 0))
 		end
 	end
+	syncCollection(state)
+	refreshState(state.Player, state)
 end
 
 local function restoreWalkSpeed(player, state)
@@ -322,6 +431,7 @@ local function createStickman(rarity)
 	model:SetAttribute("StealReadyAt", 0)
 	model:SetAttribute("CarrierUserId", 0)
 	model:SetAttribute("PreviousOwnerUserId", 0)
+	model:SetAttribute("RarityRank", rarity.Rank or 1)
 
 	local root = Instance.new("Part")
 	root.Name = "Root"
@@ -332,6 +442,17 @@ local function createStickman(rarity)
 	root.Material = Enum.Material.SmoothPlastic
 	root.Parent = model
 	model.PrimaryPart = root
+
+	if rarity.Glow then
+		local highlight = Instance.new("Highlight")
+		highlight.Name = "RarityGlow"
+		highlight.FillColor = rarity.Color
+		highlight.FillTransparency = 0.72
+		highlight.OutlineColor = rarity.Color
+		highlight.OutlineTransparency = 0.1
+		highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+		highlight.Parent = model
+	end
 
 	local head = Instance.new("Part")
 	head.Name = "Head"
@@ -373,8 +494,12 @@ local function createStickman(rarity)
 	text.TextColor3 = rarity.Color
 	text.TextScaled = true
 	text.Font = Enum.Font.GothamBold
-	text.Text = string.format("%s\n$%d • +$%d/tick", rarity.Name, rarity.Cost, rarity.Income)
+	text.Text = string.format("%s\n$%d • +$%d / %ds", rarity.Name, rarity.Cost, rarity.Income, Config.PASSIVE_TICK)
 	text.Parent = billboard
+
+	local textCorner = Instance.new("UICorner")
+	textCorner.CornerRadius = UDim.new(0, 8)
+	textCorner.Parent = text
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "ActionPrompt"
@@ -407,6 +532,10 @@ local function createStickman(rarity)
 		if not state then
 			return
 		end
+		if not canInteract(player) then
+			toast(player, "Loading your profile — one moment.")
+			return
+		end
 
 		local carrierUserId = model:GetAttribute("CarrierUserId") or 0
 		if carrierUserId ~= 0 then
@@ -425,7 +554,7 @@ local function createStickman(rarity)
 
 		local ownerUserId = model:GetAttribute("OwnerUserId") or 0
 		if ownerUserId == 0 then
-			if #state.Sidekicks >= Config.MAX_SIDEKICKS then
+			if #state.Sidekicks >= getCapacity(player) then
 				toast(player, "Your base is full.")
 				return
 			end
@@ -437,6 +566,8 @@ local function createStickman(rarity)
 
 			state.Coins.Value -= rarity.Cost
 			table.insert(state.Sidekicks, model)
+			state.Profile.TotalRecruits.Value += 1
+			state.Profile.SessionRecruits.Value += 1
 			model:SetAttribute("OwnerUserId", player.UserId)
 			model:SetAttribute("StealReadyAt", os.clock() + Config.STEAL_COOLDOWN)
 			prompt.ActionText = "Snatch"
@@ -456,7 +587,7 @@ local function createStickman(rarity)
 			return
 		end
 
-		if #state.Sidekicks >= Config.MAX_SIDEKICKS then
+		if #state.Sidekicks >= getCapacity(player) then
 			toast(player, "Your base is full.")
 			return
 		end
@@ -465,6 +596,11 @@ local function createStickman(rarity)
 		local victimState = victim and playerState[victim]
 		if not victimState then
 			toast(player, "That owner is no longer available.")
+			return
+		end
+
+		if os.clock() < (victimState.JoinProtectedUntil or 0) then
+			toast(player, "That base is still under join protection.")
 			return
 		end
 
@@ -527,7 +663,11 @@ recoverCarry = function(victim, carrier)
 	end
 
 	carrierState.Carrying = nil
+	if carrierState.Profile then
+		carrierState.Profile.CurrentStreak.Value = 0
+	end
 	restoreWalkSpeed(carrier, carrierState)
+	refreshState(carrier, carrierState)
 	carryState(carrier, false)
 
 	model:SetAttribute("CarrierUserId", 0)
@@ -583,13 +723,22 @@ secureCarry = function(player)
 	table.insert(state.Sidekicks, model)
 	reflowSidekicks(state)
 
-	local bonus = math.max(5, math.floor((model:GetAttribute("Income") or 1) * Config.SECURE_BONUS_MULTIPLIER))
-	state.Coins.Value += bonus
+	state.Profile.CurrentStreak.Value += 1
+	state.Profile.TotalSnatches.Value += 1
+	state.Profile.SessionSnatches.Value += 1
+	if state.Profile.CurrentStreak.Value > state.Profile.BestStreak.Value then
+		state.Profile.BestStreak.Value = state.Profile.CurrentStreak.Value
+	end
+
+	local streakBonus = math.min(Config.STREAK_BONUS_CAP, math.max(0, state.Profile.CurrentStreak.Value - 1) * Config.STREAK_BONUS_STEP)
+	local bonus = math.max(5, math.floor((model:GetAttribute("Income") or 1) * Config.SECURE_BONUS_MULTIPLIER * (1 + streakBonus)))
+	awardCoins(state, bonus)
+	refreshState(player, state)
 
 	if carry.Victim then
 		toast(carry.Victim, player.DisplayName .. " escaped with your stickman.")
 	end
-	toast(player, string.format("SECURED! +$%d escape bonus.", bonus))
+	toast(player, string.format("SECURED! +$%d • %dx snatch streak", bonus, state.Profile.CurrentStreak.Value))
 end
 
 dropCarry = function(player, message)
@@ -601,8 +750,12 @@ dropCarry = function(player, message)
 	local carry = state.Carrying
 	local model = carry.Model
 	state.Carrying = nil
+	if state.Profile then
+		state.Profile.CurrentStreak.Value = 0
+	end
 	restoreWalkSpeed(player, state)
 	carryState(player, false)
+	refreshState(player, state)
 
 	if not model or not model.Parent then
 		return
@@ -642,9 +795,34 @@ dropCarry = function(player, message)
 	end
 end
 
-local function spawnMarketStickman()
-	local rarity = weightedRarity()
+local marketSpawnCounter = 0
+
+local function marketStockCount()
+	local count = 0
+	for _, child in ipairs(world:GetChildren()) do
+		if child:IsA("Model")
+			and child.PrimaryPart
+			and child:GetAttribute("Rarity") ~= nil
+			and (child:GetAttribute("OwnerUserId") or 0) == 0
+			and (child:GetAttribute("CarrierUserId") or 0) == 0
+		then
+			count += 1
+		end
+	end
+	return count
+end
+
+local function spawnMarketStickman(forceCommon)
+	if marketStockCount() >= Config.MARKET_MAX_STOCK then
+		return
+	end
+
+	local rarity = forceCommon and Config.RARITIES[1] or weightedRarity()
 	local model, moveTo = createStickman(rarity)
+
+	if rarity.Name == "Legendary" or rarity.Name == "Glitched" then
+		broadcastToast(string.format("A %s stickman just appeared in the market!", string.upper(rarity.Name)))
+	end
 
 	local x = rng:NextNumber(-12, 12)
 	local z = rng:NextNumber(-30, 30)
@@ -697,6 +875,7 @@ local function releasePlot(player)
 		plot.Label.Text = "OPEN BASE"
 		plot.ShieldVisual.Transparency = 1
 	end
+	player:SetAttribute("PlotIndex", nil)
 
 	for _, model in ipairs(state.Sidekicks) do
 		if model and model.Parent then
@@ -705,7 +884,52 @@ local function releasePlot(player)
 	end
 end
 
+local function findRarity(name)
+	for _, rarity in ipairs(Config.RARITIES) do
+		if rarity.Name == name then
+			return rarity
+		end
+	end
+	return nil
+end
+
+local function restoreSavedCollection(player, state)
+	if not state or not state.Profile then
+		return
+	end
+
+	local raw = state.Profile.CollectionData.Value
+	local ok, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
+	if not ok or type(decoded) ~= "table" then
+		state.Profile.CollectionData.Value = "[]"
+		return
+	end
+
+	state.Restoring = true
+	local limit = getCapacity(player)
+	for _, rarityName in ipairs(decoded) do
+		if #state.Sidekicks >= limit then
+			break
+		end
+		local rarity = findRarity(tostring(rarityName))
+		if rarity then
+			local model = createStickman(rarity)
+			model:SetAttribute("OwnerUserId", player.UserId)
+			model:SetAttribute("StealReadyAt", os.clock() + Config.REJOIN_STEAL_PROTECTION)
+			local prompt = model.PrimaryPart and model.PrimaryPart:FindFirstChild("ActionPrompt")
+			if prompt then
+				prompt.ActionText = "Snatch"
+				prompt.ObjectText = rarity.Name .. " Stickman"
+			end
+			table.insert(state.Sidekicks, model)
+		end
+	end
+	state.Restoring = false
+	reflowSidekicks(state)
+end
+
 Players.PlayerAdded:Connect(function(player)
+	player:SetAttribute("DataReady", false)
 	local plotIndex = assignPlot(player)
 	if not plotIndex then
 		player:Kick("This prototype currently supports 6 players per server.")
@@ -721,15 +945,73 @@ Players.PlayerAdded:Connect(function(player)
 	coins.Value = Config.STARTING_COINS
 	coins.Parent = leaderstats
 
-	playerState[player] = {
+	local profile = Instance.new("Folder")
+	profile.Name = "Profile"
+	profile.Parent = player
+
+	local function intValue(name, value)
+		local item = Instance.new("IntValue")
+		item.Name = name
+		item.Value = value or 0
+		item.Parent = profile
+		return item
+	end
+
+	local collectionData = Instance.new("StringValue")
+	collectionData.Name = "CollectionData"
+	collectionData.Value = "[]"
+	collectionData.Parent = profile
+
+	intValue("IncomeLevel", 0)
+	intValue("CapacityLevel", 0)
+	intValue("ShieldLevel", 0)
+	intValue("TotalSnatches", 0)
+	intValue("BestStreak", 0)
+	intValue("TotalRecruits", 0)
+	intValue("LifetimeCoinsEarned", 0)
+	intValue("CurrentStreak", 0)
+	intValue("SessionEarned", 0)
+	intValue("SessionRecruits", 0)
+	intValue("SessionSnatches", 0)
+
+	local state = {
+		Player = player,
 		Coins = coins,
+		Profile = profile,
 		PlotIndex = plotIndex,
 		Sidekicks = {},
 		ShieldUntil = 0,
 		ShieldReadyAt = 0,
+		JoinProtectedUntil = os.clock() + Config.JOIN_PROTECTION_SECONDS,
 		Carrying = nil,
 		CarryOriginalWalkSpeed = nil,
+		Restoring = false,
 	}
+	playerState[player] = state
+	player:SetAttribute("PlotIndex", plotIndex)
+	refreshState(player, state)
+
+	for _, valueName in ipairs({"IncomeLevel", "CapacityLevel", "ShieldLevel", "CurrentStreak"}) do
+		profile[valueName].Changed:Connect(function()
+			if playerState[player] == state then
+				refreshState(player, state)
+			end
+		end)
+	end
+
+	local plot = openPlots[plotIndex]
+	if plot then
+		plot.ShieldVisual.Transparency = 0.84
+	end
+	task.delay(Config.JOIN_PROTECTION_SECONDS, function()
+		if playerState[player] == state and os.clock() >= state.JoinProtectedUntil then
+			local ownedPlot = openPlots[state.PlotIndex]
+			if ownedPlot and state.ShieldUntil <= os.clock() then
+				ownedPlot.ShieldVisual.Transparency = 1
+			end
+			refreshState(player, state)
+		end
+	end)
 
 	player.CharacterAdded:Connect(function(character)
 		task.wait(0.2)
@@ -748,8 +1030,16 @@ Players.PlayerAdded:Connect(function(player)
 		end
 	end)
 
-	task.delay(1, function()
-		toast(player, "Recruit stickmen, earn coins, snatch rivals, then ESCAPE to your green pad!")
+	task.spawn(function()
+		while player.Parent == Players and player:GetAttribute("DataReady") ~= true do
+			task.wait(0.1)
+		end
+		if player.Parent ~= Players or playerState[player] ~= state then
+			return
+		end
+		restoreSavedCollection(player, state)
+		refreshState(player, state)
+		toast(player, "Recruit, upgrade, snatch rivals, and escape to your green SECURE pad!")
 	end)
 end)
 
@@ -794,8 +1084,10 @@ task.spawn(function()
 					end
 				end
 				if income > 0 then
-					state.Coins.Value += income
+					local effectiveIncome = math.max(1, math.floor((income * getIncomeMultiplier(player)) + 0.5))
+					awardCoins(state, effectiveIncome)
 				end
+				refreshState(player, state)
 			end
 		end
 	end
@@ -803,11 +1095,13 @@ end)
 
 task.spawn(function()
 	while true do
-		spawnMarketStickman()
+		marketSpawnCounter += 1
+		local forceCommon = marketSpawnCounter % Config.AFFORDABLE_SPAWN_EVERY == 0
+		spawnMarketStickman(forceCommon)
 		task.wait(Config.SPAWN_INTERVAL)
 	end
 end)
 
-for _ = 1, 8 do
-	spawnMarketStickman()
+for i = 1, Config.INITIAL_MARKET_STOCK do
+	spawnMarketStickman(i <= 3)
 end
