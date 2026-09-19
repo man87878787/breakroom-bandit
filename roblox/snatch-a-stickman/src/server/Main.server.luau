@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
@@ -14,6 +15,10 @@ remotes.Parent = ReplicatedStorage
 local toastRemote = remotes:FindFirstChild("Toast") or Instance.new("RemoteEvent")
 toastRemote.Name = "Toast"
 toastRemote.Parent = remotes
+
+local carryRemote = remotes:FindFirstChild("CarryState") or Instance.new("RemoteEvent")
+carryRemote.Name = "CarryState"
+carryRemote.Parent = remotes
 
 local world = workspace:FindFirstChild("SnatchAStickmanWorld")
 if world then
@@ -84,6 +89,12 @@ local function toast(player, message)
 	end
 end
 
+local function carryState(player, active, message)
+	if player and player.Parent == Players then
+		carryRemote:FireClient(player, active, message or "")
+	end
+end
+
 local function makePlot(index, position)
 	local model = Instance.new("Model")
 	model.Name = "Plot" .. index
@@ -148,6 +159,31 @@ local function makePlot(index, position)
 	prompt.MaxActivationDistance = 10
 	prompt.Parent = button
 
+	local securePad = Instance.new("Part")
+	securePad.Name = "SecurePad"
+	securePad.Size = Vector3.new(12, 0.7, 7)
+	securePad.CFrame = CFrame.new(position + Vector3.new(0, 0.9, 8))
+	securePad.Anchored = true
+	securePad.CanCollide = false
+	securePad.Color = Color3.fromRGB(65, 255, 140)
+	securePad.Material = Enum.Material.Neon
+	securePad.Parent = model
+
+	local secureGui = Instance.new("SurfaceGui")
+	secureGui.Face = Enum.NormalId.Top
+	secureGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	secureGui.PixelsPerStud = 24
+	secureGui.Parent = securePad
+
+	local secureText = Instance.new("TextLabel")
+	secureText.Size = UDim2.fromScale(1, 1)
+	secureText.BackgroundTransparency = 1
+	secureText.Text = "SECURE"
+	secureText.TextColor3 = Color3.fromRGB(12, 35, 20)
+	secureText.TextScaled = true
+	secureText.Font = Enum.Font.GothamBlack
+	secureText.Parent = secureGui
+
 	local slots = Instance.new("Folder")
 	slots.Name = "Slots"
 	slots.Parent = model
@@ -156,7 +192,7 @@ local function makePlot(index, position)
 		local row = math.floor((slotIndex - 1) / 4)
 		local column = (slotIndex - 1) % 4
 		local x = -12 + (column * 8)
-		local z = -3 + (row * 8)
+		local z = -4 + (row * 7)
 
 		local slot = Instance.new("Part")
 		slot.Name = tostring(slotIndex)
@@ -176,6 +212,7 @@ local function makePlot(index, position)
 		Label = label,
 		ShieldVisual = shield,
 		ShieldPrompt = prompt,
+		SecurePad = securePad,
 		Slots = slots,
 	}
 
@@ -227,6 +264,54 @@ local function weightedRarity()
 	return Config.RARITIES[1]
 end
 
+local function removeSidekick(state, model)
+	if not state then
+		return
+	end
+
+	for i, owned in ipairs(state.Sidekicks) do
+		if owned == model then
+			table.remove(state.Sidekicks, i)
+			return
+		end
+	end
+end
+
+local function reflowSidekicks(state)
+	if not state then
+		return
+	end
+
+	local plot = openPlots[state.PlotIndex]
+	if not plot then
+		return
+	end
+
+	for slotIndex, owned in ipairs(state.Sidekicks) do
+		local targetSlot = plot.Slots:FindFirstChild(tostring(slotIndex))
+		if targetSlot and owned and owned.Parent then
+			owned:PivotTo(targetSlot.CFrame * CFrame.new(0, 3.2, 0))
+		end
+	end
+end
+
+local function restoreWalkSpeed(player, state)
+	if not player or not state then
+		return
+	end
+
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.WalkSpeed = state.CarryOriginalWalkSpeed or 16
+	end
+	state.CarryOriginalWalkSpeed = nil
+end
+
+local secureCarry
+local recoverCarry
+local dropCarry
+
 local function createStickman(rarity)
 	local model = Instance.new("Model")
 	model.Name = rarity.Name .. " Stickman"
@@ -235,6 +320,8 @@ local function createStickman(rarity)
 	model:SetAttribute("Income", rarity.Income)
 	model:SetAttribute("OwnerUserId", 0)
 	model:SetAttribute("StealReadyAt", 0)
+	model:SetAttribute("CarrierUserId", 0)
+	model:SetAttribute("PreviousOwnerUserId", 0)
 
 	local root = Instance.new("Part")
 	root.Name = "Root"
@@ -256,10 +343,10 @@ local function createStickman(rarity)
 	head.Parent = model
 
 	local limbSpecs = {
-		{"LeftArm", Vector3.new(0.35, 2.2, 0.35), Vector3.new(-0.9, 0.1, 0)},
-		{"RightArm", Vector3.new(0.35, 2.2, 0.35), Vector3.new(0.9, 0.1, 0)},
-		{"LeftLeg", Vector3.new(0.4, 2.4, 0.4), Vector3.new(-0.4, -2.5, 0)},
-		{"RightLeg", Vector3.new(0.4, 2.4, 0.4), Vector3.new(0.4, -2.5, 0)},
+		{"LeftArm", Vector3.new(0.35, 2.2, 0.35)},
+		{"RightArm", Vector3.new(0.35, 2.2, 0.35)},
+		{"LeftLeg", Vector3.new(0.4, 2.4, 0.4)},
+		{"RightLeg", Vector3.new(0.4, 2.4, 0.4)},
 	}
 
 	for _, spec in ipairs(limbSpecs) do
@@ -300,7 +387,7 @@ local function createStickman(rarity)
 
 	model.Parent = world
 
-	local function arrangeParts(cframe)
+	local function moveTo(cframe)
 		root.CFrame = cframe
 		head.CFrame = cframe * CFrame.new(0, 2.15, 0)
 
@@ -315,15 +402,24 @@ local function createStickman(rarity)
 		if rightLeg then rightLeg.CFrame = cframe * CFrame.new(0.4, -2.5, 0) end
 	end
 
-	model:SetAttribute("ArrangeVersion", 1)
-
-	local function moveTo(cframe)
-		arrangeParts(cframe)
-	end
-
 	prompt.Triggered:Connect(function(player)
 		local state = playerState[player]
 		if not state then
+			return
+		end
+
+		local carrierUserId = model:GetAttribute("CarrierUserId") or 0
+		if carrierUserId ~= 0 then
+			local carrier = Players:GetPlayerByUserId(carrierUserId)
+			local carrierState = carrier and playerState[carrier]
+
+			if carrier == player then
+				toast(player, "Run to your green SECURE pad!")
+			elseif carrierState and carrierState.Carrying and carrierState.Carrying.Model == model and carrierState.Carrying.Victim == player then
+				recoverCarry(player, carrier)
+			else
+				toast(player, "That stickman is already being carried.")
+			end
 			return
 		end
 
@@ -344,13 +440,8 @@ local function createStickman(rarity)
 			model:SetAttribute("OwnerUserId", player.UserId)
 			model:SetAttribute("StealReadyAt", os.clock() + Config.STEAL_COOLDOWN)
 			prompt.ActionText = "Snatch"
-
-			local plot = openPlots[state.PlotIndex]
-			local slot = plot.Slots:FindFirstChild(tostring(#state.Sidekicks))
-			if slot then
-				moveTo(slot.CFrame * CFrame.new(0, 3.2, 0))
-			end
-
+			prompt.ObjectText = rarity.Name .. " Stickman"
+			reflowSidekicks(state)
 			toast(player, rarity.Name .. " stickman recruited!")
 			return
 		end
@@ -360,9 +451,24 @@ local function createStickman(rarity)
 			return
 		end
 
+		if state.Carrying then
+			toast(player, "Secure the stickman you are already carrying first.")
+			return
+		end
+
+		if #state.Sidekicks >= Config.MAX_SIDEKICKS then
+			toast(player, "Your base is full.")
+			return
+		end
+
 		local victim = Players:GetPlayerByUserId(ownerUserId)
 		local victimState = victim and playerState[victim]
-		if victimState and os.clock() < victimState.ShieldUntil then
+		if not victimState then
+			toast(player, "That owner is no longer available.")
+			return
+		end
+
+		if os.clock() < victimState.ShieldUntil then
 			toast(player, "That base is shielded.")
 			return
 		end
@@ -373,48 +479,167 @@ local function createStickman(rarity)
 			return
 		end
 
-		if #state.Sidekicks >= Config.MAX_SIDEKICKS then
-			toast(player, "Your base is full.")
-			return
+		removeSidekick(victimState, model)
+		reflowSidekicks(victimState)
+
+		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		state.CarryOriginalWalkSpeed = humanoid and humanoid.WalkSpeed or 16
+		if humanoid then
+			humanoid.WalkSpeed = Config.CARRY_WALK_SPEED
 		end
 
-		if victimState then
-			for i, owned in ipairs(victimState.Sidekicks) do
-				if owned == model then
-					table.remove(victimState.Sidekicks, i)
-					break
-				end
-			end
+		state.Carrying = {
+			Model = model,
+			Victim = victim,
+			VictimState = victimState,
+		}
 
-			-- Compact the victim's display so future recruits never overlap an old slot.
-			local victimPlot = openPlots[victimState.PlotIndex]
-			if victimPlot then
-				for slotIndex, owned in ipairs(victimState.Sidekicks) do
-					local targetSlot = victimPlot.Slots:FindFirstChild(tostring(slotIndex))
-					if targetSlot and owned and owned.Parent then
-						owned:PivotTo(targetSlot.CFrame * CFrame.new(0, 3.2, 0))
-					end
-				end
-			end
-		end
+		model:SetAttribute("CarrierUserId", player.UserId)
+		model:SetAttribute("PreviousOwnerUserId", ownerUserId)
+		prompt.ActionText = "Recover"
+		prompt.ObjectText = rarity.Name .. " in transit"
+		prompt.HoldDuration = Config.RECOVER_HOLD_DURATION
 
-		table.insert(state.Sidekicks, model)
-		model:SetAttribute("OwnerUserId", player.UserId)
-		model:SetAttribute("StealReadyAt", os.clock() + Config.STEAL_COOLDOWN)
-
-		local plot = openPlots[state.PlotIndex]
-		local slot = plot.Slots:FindFirstChild(tostring(#state.Sidekicks))
-		if slot then
-			moveTo(slot.CFrame * CFrame.new(0, 3.2, 0))
-		end
-
-		if victim then
-			toast(victim, player.DisplayName .. " snatched one of your stickmen!")
-		end
-		toast(player, "Snatched! Get it behind your shield.")
+		toast(victim, player.DisplayName .. " grabbed your " .. rarity.Name .. " stickman — catch them!")
+		toast(player, "STOLEN! Escape to your green SECURE pad.")
+		carryState(player, true, "ESCAPE! Reach your green SECURE pad before the owner recovers it.")
 	end)
 
 	return model, moveTo
+end
+
+recoverCarry = function(victim, carrier)
+	local carrierState = carrier and playerState[carrier]
+	if not carrierState or not carrierState.Carrying then
+		return
+	end
+
+	local carry = carrierState.Carrying
+	if carry.Victim ~= victim then
+		return
+	end
+
+	local model = carry.Model
+	local victimState = playerState[victim]
+	if not model or not model.Parent or not victimState then
+		dropCarry(carrier, "The carry was cancelled.")
+		return
+	end
+
+	carrierState.Carrying = nil
+	restoreWalkSpeed(carrier, carrierState)
+	carryState(carrier, false)
+
+	model:SetAttribute("CarrierUserId", 0)
+	model:SetAttribute("PreviousOwnerUserId", 0)
+	model:SetAttribute("OwnerUserId", victim.UserId)
+	model:SetAttribute("StealReadyAt", os.clock() + Config.STEAL_COOLDOWN)
+
+	local prompt = model.PrimaryPart and model.PrimaryPart:FindFirstChild("ActionPrompt")
+	if prompt then
+		prompt.ActionText = "Snatch"
+		prompt.ObjectText = (model:GetAttribute("Rarity") or "Stickman") .. " Stickman"
+		prompt.HoldDuration = 0.35
+	end
+
+	table.insert(victimState.Sidekicks, model)
+	reflowSidekicks(victimState)
+
+	toast(victim, "Recovered! Your stickman is back.")
+	toast(carrier, victim.DisplayName .. " recovered the stickman.")
+end
+
+secureCarry = function(player)
+	local state = playerState[player]
+	if not state or not state.Carrying then
+		return
+	end
+
+	local carry = state.Carrying
+	local model = carry.Model
+	if not model or not model.Parent then
+		state.Carrying = nil
+		restoreWalkSpeed(player, state)
+		carryState(player, false)
+		return
+	end
+
+	state.Carrying = nil
+	restoreWalkSpeed(player, state)
+	carryState(player, false)
+
+	model:SetAttribute("CarrierUserId", 0)
+	model:SetAttribute("PreviousOwnerUserId", 0)
+	model:SetAttribute("OwnerUserId", player.UserId)
+	model:SetAttribute("StealReadyAt", os.clock() + Config.STEAL_COOLDOWN)
+
+	local prompt = model.PrimaryPart and model.PrimaryPart:FindFirstChild("ActionPrompt")
+	if prompt then
+		prompt.ActionText = "Snatch"
+		prompt.ObjectText = (model:GetAttribute("Rarity") or "Stickman") .. " Stickman"
+		prompt.HoldDuration = 0.35
+	end
+
+	table.insert(state.Sidekicks, model)
+	reflowSidekicks(state)
+
+	local bonus = math.max(5, math.floor((model:GetAttribute("Income") or 1) * Config.SECURE_BONUS_MULTIPLIER))
+	state.Coins.Value += bonus
+
+	if carry.Victim then
+		toast(carry.Victim, player.DisplayName .. " escaped with your stickman.")
+	end
+	toast(player, string.format("SECURED! +$%d escape bonus.", bonus))
+end
+
+dropCarry = function(player, message)
+	local state = playerState[player]
+	if not state or not state.Carrying then
+		return
+	end
+
+	local carry = state.Carrying
+	local model = carry.Model
+	state.Carrying = nil
+	restoreWalkSpeed(player, state)
+	carryState(player, false)
+
+	if not model or not model.Parent then
+		return
+	end
+
+	model:SetAttribute("CarrierUserId", 0)
+	model:SetAttribute("PreviousOwnerUserId", 0)
+
+	local prompt = model.PrimaryPart and model.PrimaryPart:FindFirstChild("ActionPrompt")
+	local victim = carry.Victim
+	local victimState = victim and playerState[victim]
+
+	if victim and victimState and victim.Parent == Players then
+		model:SetAttribute("OwnerUserId", victim.UserId)
+		model:SetAttribute("StealReadyAt", os.clock() + Config.STEAL_COOLDOWN)
+		if prompt then
+			prompt.ActionText = "Snatch"
+			prompt.ObjectText = (model:GetAttribute("Rarity") or "Stickman") .. " Stickman"
+			prompt.HoldDuration = 0.35
+		end
+		table.insert(victimState.Sidekicks, model)
+		reflowSidekicks(victimState)
+		toast(victim, "Your stickman returned after the escape failed.")
+	else
+		model:SetAttribute("OwnerUserId", 0)
+		model:SetAttribute("StealReadyAt", 0)
+		if prompt then
+			prompt.ActionText = "Recruit"
+			prompt.ObjectText = (model:GetAttribute("Rarity") or "Stickman") .. " Stickman"
+			prompt.HoldDuration = 0.35
+		end
+		model:PivotTo(CFrame.new(rng:NextNumber(-12, 12), 3.2, rng:NextNumber(-30, 30)))
+	end
+
+	if message then
+		toast(player, message)
+	end
 end
 
 local function spawnMarketStickman()
@@ -426,7 +651,10 @@ local function spawnMarketStickman()
 	moveTo(CFrame.new(x, 3.2, z) * CFrame.Angles(0, math.rad(rng:NextInteger(0, 359)), 0))
 
 	task.delay(Config.MARKET_LIFETIME, function()
-		if model.Parent and (model:GetAttribute("OwnerUserId") or 0) == 0 then
+		if model.Parent
+			and (model:GetAttribute("OwnerUserId") or 0) == 0
+			and (model:GetAttribute("CarrierUserId") or 0) == 0
+		then
 			model:Destroy()
 		end
 	end)
@@ -447,6 +675,20 @@ local function releasePlot(player)
 	local state = playerState[player]
 	if not state then
 		return
+	end
+
+	if state.Carrying then
+		dropCarry(player)
+	end
+
+	for otherPlayer, otherState in pairs(playerState) do
+		if otherPlayer ~= player and otherState.Carrying and otherState.Carrying.Victim == player then
+			otherState.Carrying.Victim = nil
+			otherState.Carrying.VictimState = nil
+			if otherState.Carrying.Model and otherState.Carrying.Model.Parent then
+				otherState.Carrying.Model:SetAttribute("OwnerUserId", 0)
+			end
+		end
 	end
 
 	local plot = state.PlotIndex and openPlots[state.PlotIndex]
@@ -485,25 +727,59 @@ Players.PlayerAdded:Connect(function(player)
 		Sidekicks = {},
 		ShieldUntil = 0,
 		ShieldReadyAt = 0,
+		Carrying = nil,
+		CarryOriginalWalkSpeed = nil,
 	}
 
 	player.CharacterAdded:Connect(function(character)
 		task.wait(0.2)
 		local root = character:FindFirstChild("HumanoidRootPart")
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
 		local plot = openPlots[plotIndex]
 		if root and plot then
 			root.CFrame = CFrame.new(plot.Position + Vector3.new(0, 5, -6))
 		end
+		if humanoid then
+			humanoid.Died:Connect(function()
+				if playerState[player] and playerState[player].Carrying then
+					dropCarry(player, "Escape failed — the stickman returned.")
+				end
+			end)
+		end
 	end)
 
 	task.delay(1, function()
-		toast(player, "Recruit stickmen, earn coins, and snatch rivals when their shield is down!")
+		toast(player, "Recruit stickmen, earn coins, snatch rivals, then ESCAPE to your green pad!")
 	end)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
 	releasePlot(player)
 	playerState[player] = nil
+end)
+
+RunService.Heartbeat:Connect(function()
+	for player, state in pairs(playerState) do
+		local carry = state.Carrying
+		if carry then
+			local character = player.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			local model = carry.Model
+
+			if not root or not humanoid or humanoid.Health <= 0 or not model or not model.Parent then
+				dropCarry(player, "Escape failed — the stickman returned.")
+			else
+				model:PivotTo(root.CFrame * CFrame.new(0, 3.1, 2.5) * CFrame.Angles(0, math.rad(180), 0))
+
+				local plot = openPlots[state.PlotIndex]
+				local securePad = plot and plot.SecurePad
+				if securePad and (root.Position - securePad.Position).Magnitude <= Config.SECURE_RADIUS then
+					secureCarry(player)
+				end
+			end
+		end
+	end
 end)
 
 task.spawn(function()
@@ -532,6 +808,6 @@ task.spawn(function()
 	end
 end)
 
-for i = 1, 8 do
+for _ = 1, 8 do
 	spawnMarketStickman()
 end
