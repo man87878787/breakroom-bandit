@@ -71,6 +71,18 @@ local function getCoins(player)
 	return nil
 end
 
+local function waitForDataReady(player)
+	if player:GetAttribute("DataReady") == true then
+		return true
+	end
+
+	local deadline = os.clock() + 25
+	while player.Parent == Players and player:GetAttribute("DataReady") ~= true and os.clock() < deadline do
+		task.wait(0.1)
+	end
+	return player.Parent == Players and player:GetAttribute("DataReady") == true
+end
+
 local function nextMilestone(spec, value)
 	for _, milestone in ipairs(spec.Thresholds) do
 		if value < milestone.Goal then
@@ -90,7 +102,7 @@ end
 
 local function attachPlayer(player)
 	local profile = player:WaitForChild("Profile", 20)
-	if not profile or player.Parent ~= Players then
+	if not profile or not waitForDataReady(player) then
 		return
 	end
 
@@ -100,6 +112,7 @@ local function attachPlayer(player)
 	for fieldName, spec in pairs(MILESTONES) do
 		local valueObject = profile:WaitForChild(fieldName, 10)
 		if valueObject and valueObject:IsA("IntValue") then
+			-- Baseline only after persistence has loaded. Existing lifetime progress is never re-paid.
 			local previous = valueObject.Value
 			publishProgress(player, fieldName, spec, previous)
 
