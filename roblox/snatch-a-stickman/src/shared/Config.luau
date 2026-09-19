@@ -9,6 +9,12 @@ Config.SPAWN_INTERVAL = 3.5
 Config.MARKET_LIFETIME = 40
 Config.STEAL_COOLDOWN = 7
 
+-- Escape-loop tuning
+Config.CARRY_WALK_SPEED = 12
+Config.SECURE_RADIUS = 9
+Config.RECOVER_HOLD_DURATION = 0.65
+Config.SECURE_BONUS_MULTIPLIER = 5
+
 Config.RARITIES = {
 	{Name = "Common", Weight = 60, Cost = 25, Income = 2, Color = Color3.fromRGB(225, 225, 225)},
 	{Name = "Rare", Weight = 25, Cost = 80, Income = 7, Color = Color3.fromRGB(70, 170, 255)},
