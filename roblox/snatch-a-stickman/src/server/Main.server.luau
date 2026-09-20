@@ -165,6 +165,7 @@ local function clearCarryPresentation(player, state, carry)
 		player:SetAttribute("CarryInterceptProgress", nil)
 		player:SetAttribute("CarryEscapedVictimZone", nil)
 		player:SetAttribute("CarryBreakawayDeadlineServerTime", nil)
+		player:SetAttribute("CarryRoute", nil)
 	end
 
 	local model = carry and carry.Model
@@ -172,6 +173,7 @@ local function clearCarryPresentation(player, state, carry)
 		model:SetAttribute("EscapedVictimZone", nil)
 		model:SetAttribute("BreakawayDeadlineServerTime", nil)
 		model:SetAttribute("InterceptProgress", nil)
+		model:SetAttribute("EscapeRoute", nil)
 	end
 
 	local victim = carry and carry.Victim
@@ -857,6 +859,7 @@ local function createStickman(rarity)
 			EscapedVictimZone = false,
 			Contested = false,
 			InterceptProgress = 0,
+			EscapeRoute = nil,
 		}
 
 		model:SetAttribute("CarrierUserId", player.UserId)
@@ -866,6 +869,8 @@ local function createStickman(rarity)
 		model:SetAttribute("InterceptProgress", 0)
 		model:SetAttribute("EscapedVictimZone", false)
 		model:SetAttribute("BreakawayDeadlineServerTime", workspace:GetServerTimeNow() + Config.BREAKAWAY_SECONDS)
+		model:SetAttribute("EscapeRoute", "Uncommitted")
+		player:SetAttribute("CarryRoute", "Uncommitted")
 		prompt.ActionText = "Recover"
 		prompt.ObjectText = rarity.Name .. " • HOOKED"
 		prompt.HoldDuration = Config.RECOVER_HOLD_DURATION
@@ -1353,6 +1358,33 @@ Players.PlayerRemoving:Connect(function(player)
 	playerState[player] = nil
 end)
 
+local function detectEscapeRoute(carry, position)
+	if not carry or carry.EscapeRoute then return carry and carry.EscapeRoute end
+	local victimState = carry.VictimState
+	local connectedMap = world:FindFirstChild("ConnectedMap")
+	local neighborhoods = connectedMap and connectedMap:FindFirstChild("BaseNeighborhoods")
+	local neighborhood = victimState and neighborhoods and neighborhoods:FindFirstChild("BaseNeighborhood" .. tostring(victimState.PlotIndex))
+	if not neighborhood then return nil end
+
+	local function nearPart(part, horizontalPadding, verticalPadding)
+		if not part or not part:IsA("BasePart") then return false end
+		local localPos = part.CFrame:PointToObjectSpace(position)
+		return math.abs(localPos.X) <= part.Size.X * 0.5 + horizontalPadding
+			and math.abs(localPos.Z) <= part.Size.Z * 0.5 + horizontalPadding
+			and math.abs(localPos.Y) <= part.Size.Y * 0.5 + verticalPadding
+	end
+
+	if nearPart(neighborhood:FindFirstChild("SkyDeck"), 3, 7)
+		or nearPart(neighborhood:FindFirstChild("EntryRamp"), 3, 5)
+		or nearPart(neighborhood:FindFirstChild("ExitRamp"), 3, 5) then
+		return "Sky"
+	end
+	if nearPart(neighborhood:FindFirstChild("GroundHeistLane"), 4, 5) then
+		return "Fast"
+	end
+	return nil
+end
+
 local carryUpdateAccumulator = 0
 RunService.Heartbeat:Connect(function(dt)
 	carryUpdateAccumulator += dt
@@ -1372,6 +1404,15 @@ RunService.Heartbeat:Connect(function(dt)
 			elseif not carry.EscapedVictimZone and carry.BreakawayDeadline and os.clock() >= carry.BreakawayDeadline then
 				dropCarry(player, "BREAKAWAY FAILED - leave the rival base faster next time.")
 			else
+				if not carry.EscapedVictimZone and not carry.EscapeRoute then
+					local detectedRoute = detectEscapeRoute(carry, root.Position)
+					if detectedRoute then
+						carry.EscapeRoute = detectedRoute
+						model:SetAttribute("EscapeRoute", detectedRoute)
+						player:SetAttribute("CarryRoute", detectedRoute)
+						toast(player, detectedRoute == "Fast" and "FAST LANE COMMITTED - quicker, but easier to intercept." or "SKY ROUTE COMMITTED - slower, but harder to intercept.")
+					end
+				end
 				if not carry.EscapedVictimZone then
 					local victimPlot = carry.VictimState and openPlots[carry.VictimState.PlotIndex]
 					if victimPlot and (root.Position - victimPlot.Position).Magnitude >= Config.VICTIM_BASE_ESCAPE_RADIUS then
@@ -1396,20 +1437,27 @@ RunService.Heartbeat:Connect(function(dt)
 				end
 
 				-- Sustained defender proximity after breakaway becomes a real interception.
+				local routeCaptureSeconds = Config.INTERCEPT_CAPTURE_SECONDS
+				if carry.EscapeRoute == "Fast" then
+					routeCaptureSeconds = Config.FAST_ROUTE_INTERCEPT_SECONDS
+				elseif carry.EscapeRoute == "Sky" then
+					routeCaptureSeconds = Config.SKY_ROUTE_INTERCEPT_SECONDS
+				end
 				if carry.EscapedVictimZone and intercepting then
-					carry.InterceptProgress = math.min(Config.INTERCEPT_CAPTURE_SECONDS, (carry.InterceptProgress or 0) + Config.CARRY_SERVER_UPDATE_RATE)
+					carry.InterceptProgress = math.min(routeCaptureSeconds, (carry.InterceptProgress or 0) + Config.CARRY_SERVER_UPDATE_RATE)
 				else
 					carry.InterceptProgress = math.max(0, (carry.InterceptProgress or 0) - (Config.CARRY_SERVER_UPDATE_RATE * Config.INTERCEPT_DECAY_PER_SECOND))
 				end
-				local interceptRatio = math.clamp((carry.InterceptProgress or 0) / Config.INTERCEPT_CAPTURE_SECONDS, 0, 1)
+				local interceptRatio = math.clamp((carry.InterceptProgress or 0) / routeCaptureSeconds, 0, 1)
 				model:SetAttribute("InterceptProgress", interceptRatio)
 				player:SetAttribute("CarryInterceptProgress", interceptRatio)
 
-				if carry.EscapedVictimZone and carry.InterceptProgress >= Config.INTERCEPT_CAPTURE_SECONDS and carry.Victim then
+				if carry.EscapedVictimZone and carry.InterceptProgress >= routeCaptureSeconds and carry.Victim then
 					toast(carry.Victim, "INTERCEPT! You stayed on the thief and recovered your stickman.")
 					recoverCarry(carry.Victim, player)
 				else
-					humanoid.WalkSpeed = contested and Config.CONTESTED_CARRY_WALK_SPEED or Config.CARRY_WALK_SPEED
+					local baseCarrySpeed = carry.EscapeRoute == "Fast" and Config.FAST_ROUTE_CARRY_WALK_SPEED or (carry.EscapeRoute == "Sky" and Config.SKY_ROUTE_CARRY_WALK_SPEED or Config.CARRY_WALK_SPEED)
+					humanoid.WalkSpeed = contested and math.min(baseCarrySpeed, Config.CONTESTED_CARRY_WALK_SPEED) or baseCarrySpeed
 					model:PivotTo(root.CFrame * CFrame.new(0, 3.1, 2.5) * CFrame.Angles(0, math.rad(180), 0))
 					local plot = openPlots[state.PlotIndex]
 					local securePads = plot and plot.SecurePads or nil
