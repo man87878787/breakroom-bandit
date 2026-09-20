@@ -1,8 +1,10 @@
 -- Compact HUD for rotating district activities.
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local WorldConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WorldConfig"))
 local player = Players.LocalPlayer
 local world = workspace:WaitForChild("SnatchTheStickmanWorld")
 
@@ -88,11 +90,13 @@ status.Font = Enum.Font.GothamBold
 status.Parent = card
 
 local function districtDisplay(id)
-	if id == "FreightYard" then return "SCRAPLINE FREIGHT" end
-	if id == "NeonJunction" then return "NEON JUNCTION" end
-	if id == "Highline" then return "THE HIGHLINE" end
-	if id == "FoundryCommons" then return "FOUNDRY COMMONS" end
-	return string.upper(id or "CITY")
+	local district = WorldConfig.GetDistrictById(id)
+	return district and string.upper(district.Name) or string.upper(id or "CITY")
+end
+
+local function districtAccent(id)
+	local district = WorldConfig.GetDistrictById(id)
+	return district and district.Accent or Color3.fromRGB(92, 123, 255)
 end
 
 local function resize()
@@ -128,7 +132,11 @@ RunService.Heartbeat:Connect(function(dt)
 	local progress = tonumber(player:GetAttribute("DistrictActivityProgress")) or 0
 	local completed = player:GetAttribute("DistrictActivityCompleted") == true
 	local remaining = math.max(0, math.ceil(endsAt - workspace:GetServerTimeNow()))
+	local accent = districtAccent(district)
 
+	stroke.Color = accent
+	bar.BackgroundColor3 = accent
+	title.TextColor3 = accent
 	title.Text = name
 	if completed then
 		detail.Text = string.format("%s • COMPLETE • +$%d", districtDisplay(district), reward)
