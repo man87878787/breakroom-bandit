@@ -63,6 +63,26 @@ Config.DISCOVERY_MILESTONES = {
 	{Count = 5, Reward = 3500},
 }
 
+Config.MASTERY_MAX_LEVEL = 30
+Config.MASTERY_BASE_XP = 90
+Config.MASTERY_XP_GROWTH = 45
+Config.MASTERY_RECRUIT_XP = 14
+Config.MASTERY_SNATCH_XP = 60
+Config.MASTERY_DISCOVERY_XP = 85
+Config.MASTERY_STREAK_XP = 18
+Config.MASTERY_LEVEL_REWARD_BASE = 90
+Config.MASTERY_LEVEL_REWARD_STEP = 35
+Config.MASTERY_INCOME_BONUS_PER_LEVEL = 0.01
+Config.MASTERY_INCOME_BONUS_CAP = 0.25
+
+Config.DIVERSITY_BONUS_PER_EXTRA_RARITY = 0.03
+Config.DIVERSITY_BONUS_CAP = 0.12
+
+Config.MARKET_EVENT_INTERVAL = 100
+Config.MARKET_EVENT_DURATION = 38
+Config.PAYDAY_MULTIPLIER = 1.5
+Config.RARE_RUSH_EPIC_PLUS_MULTIPLIER = 2.4
+
 Config.RARITIES = {
 	{Name = "Common", Rank = 1, Weight = 60, Cost = 25, Income = 2, Color = Color3.fromRGB(225, 225, 225), Glow = false},
 	{Name = "Rare", Rank = 2, Weight = 25, Cost = 80, Income = 7, Color = Color3.fromRGB(70, 170, 255), Glow = false},

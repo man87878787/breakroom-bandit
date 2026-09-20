@@ -402,7 +402,7 @@ local function adapt()
 	if not camera then return end
 	local width = camera.ViewportSize.X
 	if width < 760 then
-		openButton.Position = UDim2.new(1, -12, 0, 154)
+		openButton.Position = UDim2.new(1, -12, 0, 184)
 		buttonBaseSize = UDim2.fromOffset(158, 40)
 		openButton.Size = buttonBaseSize
 		openButton.TextSize = 12
@@ -410,7 +410,7 @@ local function adapt()
 		reveal.Size = UDim2.new(0.9, 0, 0, 64)
 		reveal.TextSize = 15
 	else
-		openButton.Position = UDim2.new(1, -18, 0, 176)
+		openButton.Position = UDim2.new(1, -18, 0, 190)
 		buttonBaseSize = UDim2.fromOffset(190, 44)
 		openButton.Size = buttonBaseSize
 		openButton.TextSize = 14

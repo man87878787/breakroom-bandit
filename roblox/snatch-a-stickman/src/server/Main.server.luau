@@ -293,17 +293,40 @@ local function refreshState(player, state)
 	end
 
 	local baseIncome = 0
+	local uniqueRarities = {}
+	local highestRarityRank = 0
 	for _, model in ipairs(state.Sidekicks) do
 		if model and model.Parent then
 			baseIncome += model:GetAttribute("Income") or 0
+			local rarityName = tostring(model:GetAttribute("Rarity") or "Common")
+			uniqueRarities[rarityName] = true
+			for _, rarity in ipairs(Config.RARITIES) do
+				if rarity.Name == rarityName then
+					highestRarityRank = math.max(highestRarityRank, rarity.Rank or 0)
+					break
+				end
+			end
 		end
 	end
 
-	local effectiveIncome = math.floor((baseIncome * getIncomeMultiplier(player)) + 0.5)
+	local diversityCount = 0
+	for _ in pairs(uniqueRarities) do diversityCount += 1 end
+	local diversityBonus = math.min(
+		Config.DIVERSITY_BONUS_CAP,
+		math.max(0, diversityCount - 1) * Config.DIVERSITY_BONUS_PER_EXTRA_RARITY
+	)
+	local masteryBonus = math.clamp(tonumber(player:GetAttribute("MasteryIncomeBonus")) or 0, 0, Config.MASTERY_INCOME_BONUS_CAP)
+	local marketMultiplier = math.clamp(tonumber(world:GetAttribute("MarketIncomeMultiplier")) or 1, 1, Config.PAYDAY_MULTIPLIER)
+	local totalMultiplier = getIncomeMultiplier(player) * (1 + diversityBonus) * (1 + masteryBonus) * marketMultiplier
+	local effectiveIncome = math.floor((baseIncome * totalMultiplier) + 0.5)
 	local capacity = getCapacity(player)
 	player:SetAttribute("CrewCount", #state.Sidekicks)
 	player:SetAttribute("Capacity", capacity)
 	player:SetAttribute("IncomePerTick", effectiveIncome)
+	player:SetAttribute("CrewDiversity", diversityCount)
+	player:SetAttribute("CrewDiversityBonus", diversityBonus)
+	player:SetAttribute("CrewHighestRarityRank", highestRarityRank)
+	player:SetAttribute("IncomeBoostMultiplier", totalMultiplier)
 	player:SetAttribute("CurrentStreak", state.Profile and state.Profile.CurrentStreak.Value or 0)
 	player:SetAttribute("ShieldUntilServerTime", workspace:GetServerTimeNow() + math.max(0, state.ShieldUntil - os.clock()))
 	player:SetAttribute("ShieldReadyServerTime", workspace:GetServerTimeNow() + math.max(0, state.ShieldReadyAt - os.clock()))
@@ -477,16 +500,28 @@ for index, position in ipairs(plotPositions) do
 	makePlot(index, position)
 end
 
+local function rarityWeight(rarity)
+	local weight = rarity.Weight
+	if world:GetAttribute("MarketEvent") == "Rare Rush" then
+		if (rarity.Rank or 1) >= 3 then
+			weight *= Config.RARE_RUSH_EPIC_PLUS_MULTIPLIER
+		elseif (rarity.Rank or 1) == 1 then
+			weight *= 0.65
+		end
+	end
+	return weight
+end
+
 local function weightedRarity()
 	local total = 0
 	for _, rarity in ipairs(Config.RARITIES) do
-		total += rarity.Weight
+		total += rarityWeight(rarity)
 	end
 
 	local roll = rng:NextNumber(0, total)
 	local running = 0
 	for _, rarity in ipairs(Config.RARITIES) do
-		running += rarity.Weight
+		running += rarityWeight(rarity)
 		if roll <= running then
 			return rarity
 		end
@@ -970,6 +1005,7 @@ dropCarry = function(player, message)
 end
 
 local marketSpawnCounter = 0
+local epicPlusDrought = 0
 
 local function marketStockCount()
 	local count = 0
@@ -991,7 +1027,23 @@ local function spawnMarketStickman(forceCommon)
 		return
 	end
 
-	local rarity = forceCommon and Config.RARITIES[1] or weightedRarity()
+	local rarity
+	if forceCommon then
+		rarity = Config.RARITIES[1]
+	elseif epicPlusDrought >= 12 then
+		rarity = Config.RARITIES[3]
+	else
+		rarity = weightedRarity()
+	end
+
+	if not forceCommon then
+		if (rarity.Rank or 1) >= 3 then
+			epicPlusDrought = 0
+		else
+			epicPlusDrought += 1
+		end
+	end
+
 	local model, moveTo = createStickman(rarity)
 
 	if rarity.Name == "Legendary" or rarity.Name == "Glitched" then
@@ -1166,6 +1218,8 @@ Players.PlayerAdded:Connect(function(player)
 	intValue("BestStreak", 0)
 	intValue("TotalRecruits", 0)
 	intValue("LifetimeCoinsEarned", 0)
+	intValue("MasteryXP", 0)
+	intValue("MasteryLevel", 0)
 	intValue("CurrentStreak", 0)
 	intValue("SessionEarned", 0)
 	intValue("SessionRecruits", 0)
@@ -1277,17 +1331,11 @@ task.spawn(function()
 		task.wait(Config.PASSIVE_TICK)
 		for player, state in pairs(playerState) do
 			if player.Parent == Players then
-				local income = 0
-				for _, model in ipairs(state.Sidekicks) do
-					if model and model.Parent then
-						income += model:GetAttribute("Income") or 0
-					end
-				end
-				if income > 0 then
-					local effectiveIncome = math.max(1, math.floor((income * getIncomeMultiplier(player)) + 0.5))
+				refreshState(player, state)
+				local effectiveIncome = math.max(0, math.floor(tonumber(player:GetAttribute("IncomePerTick")) or 0))
+				if effectiveIncome > 0 then
 					awardCoins(state, effectiveIncome)
 				end
-				refreshState(player, state)
 			end
 		end
 	end

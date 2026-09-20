@@ -26,6 +26,8 @@ local persistentFields = {
 	"BestStreak",
 	"TotalRecruits",
 	"LifetimeCoinsEarned",
+	"MasteryXP",
+	"MasteryLevel",
 }
 
 local function keyFor(player)
@@ -99,6 +101,8 @@ local function maxLevelFor(name)
 		return #Config.CAPACITY_BY_LEVEL - 1
 	elseif name == "ShieldLevel" then
 		return #Config.SHIELD_DURATION_BY_LEVEL - 1
+	elseif name == "MasteryLevel" then
+		return Config.MASTERY_MAX_LEVEL
 	end
 	return MAX_REASONABLE_NUMBER
 end

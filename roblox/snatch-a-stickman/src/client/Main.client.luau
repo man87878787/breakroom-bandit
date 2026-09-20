@@ -93,6 +93,7 @@ local coinsLabel = makeText(stats, "Coins", UDim2.fromOffset(14, 31), UDim2.new(
 local incomeLabel = makeText(stats, "Income", UDim2.fromOffset(14, 61), UDim2.new(1, -28, 0, 22), "+$0 / tick", Color3.fromRGB(212, 221, 244), Enum.Font.GothamBold, 14)
 local crewLabel = makeText(stats, "Crew", UDim2.fromOffset(14, 84), UDim2.new(1, -28, 0, 22), "Crew 0/8", Color3.fromRGB(212, 221, 244), Enum.Font.GothamBold, 14)
 local streakLabel = makeText(stats, "Streak", UDim2.fromOffset(14, 107), UDim2.new(1, -28, 0, 22), "Snatch streak 0x", Color3.fromRGB(255, 194, 92), Enum.Font.GothamBold, 14)
+local boostLabel = makeText(stats, "Boost", UDim2.fromOffset(14, 130), UDim2.new(1, -28, 0, 20), "Crew boost x1.00", Color3.fromRGB(157, 193, 255), Enum.Font.GothamMedium, 11)
 
 local coinScale = Instance.new("UIScale")
 coinScale.Parent = coinsLabel
@@ -213,8 +214,16 @@ end
 
 local function refreshStats()
 	incomeLabel.Text = string.format("+$%d / %ds", player:GetAttribute("IncomePerTick") or 0, 2)
-	crewLabel.Text = string.format("Crew %d/%d", player:GetAttribute("CrewCount") or 0, player:GetAttribute("Capacity") or 8)
+	crewLabel.Text = string.format(
+		"Crew %d/%d • %d rarities",
+		player:GetAttribute("CrewCount") or 0,
+		player:GetAttribute("Capacity") or 8,
+		player:GetAttribute("CrewDiversity") or 0
+	)
 	streakLabel.Text = string.format("Snatch streak %dx", player:GetAttribute("CurrentStreak") or 0)
+	local multiplier = tonumber(player:GetAttribute("IncomeBoostMultiplier")) or 1
+	local diversityBonus = tonumber(player:GetAttribute("CrewDiversityBonus")) or 0
+	boostLabel.Text = string.format("Income boost x%.2f • diversity +%d%%", multiplier, math.floor(diversityBonus * 100 + 0.5))
 end
 
 local function missionText(kind, fallback)
@@ -351,7 +360,7 @@ local function adaptToViewport()
 	local width = camera.ViewportSize.X
 	if width < 760 then
 		title.Size = UDim2.new(0.48, 0, 0, 42)
-		stats.Size = UDim2.fromOffset(210, 136)
+		stats.Size = UDim2.fromOffset(210, 156)
 		missions.Size = UDim2.new(0.52, 0, 0, 142)
 		shieldStatus.Size = UDim2.fromOffset(200, 38)
 		carryBanner.Size = UDim2.new(0.88, 0, 0, 52)
@@ -359,7 +368,7 @@ local function adaptToViewport()
 		hint.Size = UDim2.new(0.9, 0, 0, 24)
 	else
 		title.Size = UDim2.new(0.38, 0, 0, 46)
-		stats.Size = UDim2.fromOffset(255, 142)
+		stats.Size = UDim2.fromOffset(255, 164)
 		missions.Size = UDim2.fromOffset(330, 146)
 		shieldStatus.Size = UDim2.fromOffset(235, 40)
 		carryBanner.Size = UDim2.new(0.72, 0, 0, 56)
@@ -376,7 +385,7 @@ refreshShield()
 adaptToViewport()
 
 coins.Changed:Connect(refreshCoins)
-for _, attribute in ipairs({"IncomePerTick", "CrewCount", "Capacity", "CurrentStreak"}) do
+for _, attribute in ipairs({"IncomePerTick", "CrewCount", "Capacity", "CurrentStreak", "CrewDiversity", "CrewDiversityBonus", "IncomeBoostMultiplier"}) do
 	player:GetAttributeChangedSignal(attribute):Connect(refreshStats)
 end
 for _, attribute in ipairs({
