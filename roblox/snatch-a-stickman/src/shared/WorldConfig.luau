@@ -81,6 +81,63 @@ WorldConfig.TRANSIT_STOPS = {
 	},
 }
 
+WorldConfig.ACTIVITY_SETTINGS = {
+	InitialDelay = 24,
+	Interval = 36,
+	TickRate = 0.5,
+}
+
+WorldConfig.ACTIVITIES = {
+	{
+		Id = "FreightSweep",
+		Name = "Freight Sweep",
+		DistrictId = "FreightYard",
+		Description = "Hold the freight loading zone while a rare cargo scan finishes.",
+		Position = Vector3.new(-88, 0, 4),
+		RequiredSeconds = 18,
+		Duration = 72,
+		Radius = 14,
+		Reward = 220,
+		Accent = Color3.fromRGB(255, 183, 78),
+	},
+	{
+		Id = "NeonRelay",
+		Name = "Neon Relay",
+		DistrictId = "NeonJunction",
+		Description = "Keep the east relay online long enough to stabilize transit.",
+		Position = Vector3.new(88, 0, 5),
+		RequiredSeconds = 16,
+		Duration = 68,
+		Radius = 13,
+		Reward = 210,
+		Accent = Color3.fromRGB(75, 198, 255),
+	},
+	{
+		Id = "HighlineWatch",
+		Name = "Highline Watch",
+		DistrictId = "Highline",
+		Description = "Reach the elevated lookout and hold it through a city scan.",
+		Position = Vector3.new(-24, 8, -104),
+		RequiredSeconds = 20,
+		Duration = 76,
+		Radius = 11,
+		Reward = 250,
+		Accent = Color3.fromRGB(204, 105, 255),
+	},
+	{
+		Id = "CommonsRally",
+		Name = "Commons Rally",
+		DistrictId = "FoundryCommons",
+		Description = "Secure the fountain rally point until the crew signal completes.",
+		Position = Vector3.new(-18, 1, 106),
+		RequiredSeconds = 17,
+		Duration = 70,
+		Radius = 12,
+		Reward = 230,
+		Accent = Color3.fromRGB(255, 105, 145),
+	},
+}
+
 WorldConfig.NPCS = {
 	{
 		Name = "Mara",

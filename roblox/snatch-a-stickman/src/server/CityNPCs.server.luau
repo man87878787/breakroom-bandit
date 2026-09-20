@@ -88,6 +88,17 @@ end
 
 local function contextualDialogue(npc)
 	local eventName = tostring(world:GetAttribute("MarketEvent") or "Calm")
+	local activeDistrict = tostring(world:GetAttribute("DistrictActivityDistrict") or "")
+	local activityName = tostring(world:GetAttribute("DistrictActivityName") or "city activity")
+	local roleDistrict = {
+		["Freight Mechanic"] = "FreightYard",
+		["Transit Dispatcher"] = "NeonJunction",
+		["Highline Lookout"] = "Highline",
+		["Commons Caretaker"] = "FoundryCommons",
+	}
+	if roleDistrict[npc.Role] and roleDistrict[npc.Role] == activeDistrict then
+		return activityName .. " is live here. Stay inside the marked zone until the scan completes; active heists pause activity progress."
+	end
 	if npc.Role == "Market Broker" then
 		if eventName == "Rare Rush" then
 			return "Rare Rush is live. The market can spike quickly, so watch your coins and protect anything valuable you land."
