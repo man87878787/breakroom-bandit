@@ -423,7 +423,8 @@ RunService.Heartbeat:Connect(function(dt)
 		local victimName = tostring(player:GetAttribute("CarryVictimName") or "")
 		local expiresAt = player:GetAttribute("CarryExpiresServerTime") or 0
 		local secondsLeft = math.max(0, math.ceil(expiresAt - now))
-		carryBanner.BackgroundColor3 = secondsLeft <= 8 and Color3.fromRGB(202, 72, 64) or Color3.fromRGB(32, 166, 84)
+		local contested = player:GetAttribute("CarryContested") == true
+		carryBanner.BackgroundColor3 = contested and Color3.fromRGB(220, 125, 35) or (secondsLeft <= 8 and Color3.fromRGB(202, 72, 64) or Color3.fromRGB(32, 166, 84))
 		if pad and rootPart then
 			local distance = math.max(0, math.floor((rootPart.Position - pad.Position).Magnitude + 0.5))
 			if victimName ~= "" then

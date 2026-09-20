@@ -161,6 +161,7 @@ local function clearCarryPresentation(player, state, carry)
 		player:SetAttribute("CarryVictimName", nil)
 		player:SetAttribute("CarryStartedServerTime", nil)
 		player:SetAttribute("CarryExpiresServerTime", nil)
+		player:SetAttribute("CarryContested", nil)
 	end
 
 	local victim = carry and carry.Victim
@@ -816,11 +817,13 @@ local function createStickman(rarity)
 			VictimState = victimState,
 			StartedAt = carryStartedAt,
 			ExpiresAt = carryStartedAt + Config.CARRY_TIMEOUT_SECONDS,
+			Contested = false,
 		}
 
 		model:SetAttribute("CarrierUserId", player.UserId)
 		model:SetAttribute("PreviousOwnerUserId", ownerUserId)
 		model:SetAttribute("TransferState", "InTransit")
+		model:SetAttribute("Contested", false)
 		prompt.ActionText = "Recover"
 		prompt.ObjectText = rarity.Name .. " • HOOKED"
 		prompt.HoldDuration = Config.RECOVER_HOLD_DURATION
@@ -873,6 +876,7 @@ recoverCarry = function(victim, carrier)
 	model:SetAttribute("OwnerUserId", victim.UserId)
 	model:SetAttribute("StealReadyAt", os.clock() + Config.STEAL_COOLDOWN)
 	model:SetAttribute("TransferState", "Owned")
+	model:SetAttribute("Contested", false)
 
 	local prompt = model.PrimaryPart and model.PrimaryPart:FindFirstChild("ActionPrompt")
 	if prompt then
@@ -915,6 +919,7 @@ secureCarry = function(player)
 	model:SetAttribute("OwnerUserId", player.UserId)
 	model:SetAttribute("StealReadyAt", os.clock() + Config.STEAL_COOLDOWN)
 	model:SetAttribute("TransferState", "Owned")
+	model:SetAttribute("Contested", false)
 
 	local prompt = model.PrimaryPart and model.PrimaryPart:FindFirstChild("ActionPrompt")
 	if prompt then
@@ -990,6 +995,7 @@ dropCarry = function(player, message)
 		model:SetAttribute("OwnerUserId", 0)
 		model:SetAttribute("StealReadyAt", 0)
 		model:SetAttribute("TransferState", "Market")
+		model:SetAttribute("Contested", false)
 		if prompt then
 			prompt.ActionText = "Recruit"
 			prompt.ObjectText = (model:GetAttribute("Rarity") or "Stickman") .. " Stickman"
@@ -1300,7 +1306,11 @@ Players.PlayerRemoving:Connect(function(player)
 	playerState[player] = nil
 end)
 
-RunService.Heartbeat:Connect(function()
+local carryUpdateAccumulator = 0
+RunService.Heartbeat:Connect(function(dt)
+	carryUpdateAccumulator += dt
+	if carryUpdateAccumulator < Config.CARRY_SERVER_UPDATE_RATE then return end
+	carryUpdateAccumulator = 0
 	for player, state in pairs(playerState) do
 		local carry = state.Carrying
 		if carry then
@@ -1308,19 +1318,25 @@ RunService.Heartbeat:Connect(function()
 			local root = character and character:FindFirstChild("HumanoidRootPart")
 			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 			local model = carry.Model
-
 			if not root or not humanoid or humanoid.Health <= 0 or not model or not model.Parent then
-				dropCarry(player, "Escape failed — the stickman returned.")
+				dropCarry(player, "Escape failed - the stickman returned.")
 			elseif carry.ExpiresAt and os.clock() >= carry.ExpiresAt then
-				dropCarry(player, "HOOK EXPIRED — the stickman returned.")
+				dropCarry(player, "HOOK EXPIRED - the stickman returned.")
 			else
+				local victimCharacter = carry.Victim and carry.Victim.Character
+				local victimRoot = victimCharacter and victimCharacter:FindFirstChild("HumanoidRootPart")
+				local contested = victimRoot ~= nil and (victimRoot.Position - root.Position).Magnitude <= Config.CONTESTED_RANGE
+				if carry.Contested ~= contested then
+					carry.Contested = contested
+					model:SetAttribute("Contested", contested)
+					player:SetAttribute("CarryContested", contested)
+					if contested then toast(player, "CONTESTED! The owner is close - break away!") end
+				end
+				humanoid.WalkSpeed = contested and Config.CONTESTED_CARRY_WALK_SPEED or Config.CARRY_WALK_SPEED
 				model:PivotTo(root.CFrame * CFrame.new(0, 3.1, 2.5) * CFrame.Angles(0, math.rad(180), 0))
-
 				local plot = openPlots[state.PlotIndex]
 				local securePad = plot and plot.SecurePad
-				if securePad and (root.Position - securePad.Position).Magnitude <= Config.SECURE_RADIUS then
-					secureCarry(player)
-				end
+				if securePad and (root.Position - securePad.Position).Magnitude <= Config.SECURE_RADIUS then secureCarry(player) end
 			end
 		end
 	end
