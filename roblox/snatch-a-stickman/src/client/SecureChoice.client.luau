@@ -70,7 +70,7 @@ RunService.Heartbeat:Connect(function(dt)
 	if #highlights == 0 then return end
 	accumulator += dt
 	if accumulator < 0.15 then return end
-	accumlator = 0
+	accumulator = 0
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if not root then return end
 	for _, highlight in ipairs(highlights) do
