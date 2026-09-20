@@ -342,6 +342,12 @@ end
 local function makePlot(index, position)
 	local model = Instance.new("Model")
 	model.Name = "Plot" .. index
+	model:SetAttribute("PlotIndex", index)
+	model:SetAttribute("OwnerUserId", 0)
+	model:SetAttribute("OwnerDisplayName", "")
+	model:SetAttribute("ShieldUntilServerTime", 0)
+	model:SetAttribute("ShieldReadyServerTime", 0)
+	model:SetAttribute("JoinProtectionUntilServerTime", 0)
 	model.Parent = world
 
 	local floor = Instance.new("Part")
@@ -1106,6 +1112,11 @@ local function releasePlot(player)
 		plot.Owner = nil
 		plot.Label.Text = "OPEN BASE"
 		plot.ShieldVisual.Transparency = 1
+		plot.Model:SetAttribute("OwnerUserId", 0)
+		plot.Model:SetAttribute("OwnerDisplayName", "")
+		plot.Model:SetAttribute("ShieldUntilServerTime", 0)
+		plot.Model:SetAttribute("ShieldReadyServerTime", 0)
+		plot.Model:SetAttribute("JoinProtectionUntilServerTime", 0)
 	end
 	player:SetAttribute("PlotIndex", nil)
 
