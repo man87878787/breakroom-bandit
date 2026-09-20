@@ -168,7 +168,7 @@ local function showStep(index)
 	if step > #steps then
 		heading.Text = "READY TO SNATCH"
 		objective.Text = "You know the loop."
-		detail.Text = "Build income, protect your best stickmen, and escape with high-value rivals."
+		detail.Text = "Build income, protect your crew, snatch rivals, and press B to complete your permanent Stickman Index."
 		TweenService:Create(bar, TweenInfo.new(0.25), {Size = UDim2.fromScale(1, 1)}):Play()
 		task.delay(4, function()
 			if card.Parent then
