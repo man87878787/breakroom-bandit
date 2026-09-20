@@ -1,5 +1,9 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local ranks = Config.RUN_MOMENTUM.Ranks
 
 local player = Players.LocalPlayer
 local gui = Instance.new("ScreenGui")
@@ -87,7 +91,7 @@ local function refresh()
 	local objectiveText = tostring(player:GetAttribute("SessionRunObjective") or "Build your crew")
 	local rank = tostring(player:GetAttribute("SessionRunRank") or "ROOKIE")
 	local nextRank = tostring(player:GetAttribute("SessionRunNextRank") or "BRONZE")
-	local nextScore = tonumber(player:GetAttribute("SessionRunNextRankScore")) or 250
+	local nextScore = tonumber(player:GetAttribute("SessionRunNextRankScore")) or (ranks[2] and ranks[2].Score or 250)
 	local progress = tonumber(player:GetAttribute("SessionRunRankProgress")) or 0
 	local color = rankColor(rank)
 

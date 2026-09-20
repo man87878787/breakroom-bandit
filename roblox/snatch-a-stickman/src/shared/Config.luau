@@ -123,6 +123,29 @@ Config.HEIST_CONTRACTS = {
 	RouteMaxReward = 650,
 }
 
+Config.RUN_MOMENTUM = {
+	Ranks = {
+		{Name = "ROOKIE", Score = 0, Reward = 0},
+		{Name = "BRONZE", Score = 250, Reward = 70},
+		{Name = "SILVER", Score = 650, Reward = 150},
+		{Name = "GOLD", Score = 1300, Reward = 300},
+		{Name = "DIAMOND", Score = 2200, Reward = 550},
+		{Name = "LEGEND", Score = 3500, Reward = 900},
+	},
+	Score = {Crew = 22, EarnedDivisor = 18, Snatch = 90, Discovery = 55, Diversity = 40, Mastery = 24, Streak = 35, IncomeDivisor = 5, IncomeStep = 12},
+	Bonuses = {FirstRecruit = 35, Income10 = 80, Diversity2 = 95, FirstSnatch = 130, Discovery3 = 160, Streak3 = 180, Crew5 = 190, Income50 = 250, Mastery5 = 300, Crew8 = 350},
+	PublishInterval = 2,
+}
+
+Config.RARITY_BOUNTY = {
+	MinimumRank = 2,
+	BaseReward = 100,
+	RewardPerRankSquared = 90,
+	DurationSeconds = 80,
+	InitialDelaySeconds = 22,
+	CooldownSeconds = 18,
+	PollInterval = 0.5,
+}
 Config.DIVERSITY_BONUS_PER_EXTRA_RARITY = 0.03
 Config.DIVERSITY_BONUS_CAP = 0.12
 

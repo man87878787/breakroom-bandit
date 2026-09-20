@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local bountyConfig = Config.RARITY_BOUNTY
 local remotes = ReplicatedStorage:WaitForChild("GameRemotes")
 local toastRemote = remotes:WaitForChild("Toast")
 
@@ -11,7 +12,7 @@ local rng = Random.new()
 
 local TARGETS = {}
 for _, rarity in ipairs(Config.RARITIES) do
-	if (rarity.Rank or 1) >= 2 then
+	if (rarity.Rank or 1) >= bountyConfig.MinimumRank then
 		table.insert(TARGETS, rarity)
 	end
 end
@@ -27,7 +28,7 @@ local function countRarity(collectionValue, rarityName)
 end
 
 local function rewardFor(rarity)
-	return math.floor(100 + (rarity.Rank or 1) ^ 2 * 90)
+	return math.floor(bountyConfig.BaseReward + (rarity.Rank or 1) ^ 2 * bountyConfig.RewardPerRankSquared)
 end
 local function publish(player, session)
 	local target = session.Target
@@ -57,7 +58,7 @@ local function startBounty(player, session)
 	session.Target = target
 	session.LastTarget = target.Name
 	session.Baseline = countRarity(session.Collection.Value, target.Name)
-	session.ExpiresAt = workspace:GetServerTimeNow() + 80
+	session.ExpiresAt = workspace:GetServerTimeNow() + bountyConfig.DurationSeconds
 	session.NextAt = 0
 	session.Completed = false
 	publish(player, session)
@@ -89,7 +90,7 @@ local function finishBounty(player, session, success)
 	session.Target = nil
 	session.Completed = success
 	session.ExpiresAt = 0
-	session.NextAt = workspace:GetServerTimeNow() + 18
+	session.NextAt = workspace:GetServerTimeNow() + bountyConfig.CooldownSeconds
 	publish(player, session)
 end
 local function start(player)
@@ -106,7 +107,7 @@ local function start(player)
 		LastTarget = nil,
 		Baseline = 0,
 		ExpiresAt = 0,
-		NextAt = workspace:GetServerTimeNow() + 22,
+		NextAt = workspace:GetServerTimeNow() + bountyConfig.InitialDelaySeconds,
 	}
 	sessions[player] = session
 	publish(player, session)
@@ -129,7 +130,7 @@ local function start(player)
 			elseif now >= session.NextAt then
 				startBounty(player, session)
 			end
-			task.wait(0.5)
+			task.wait(bountyConfig.PollInterval)
 		end
 	end)
 end
