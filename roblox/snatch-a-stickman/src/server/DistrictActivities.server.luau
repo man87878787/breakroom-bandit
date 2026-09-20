@@ -71,10 +71,11 @@ local function makeMarker(activity)
 	local district = WorldConfig.GetDistrictById(activity.DistrictId)
 	if not district then return end
 
+	local markerPosition = activity.Position or district.Center
 	local marker = Instance.new("Part")
 	marker.Name = activity.Id .. "Marker"
-	marker.Size = Vector3.new(5.5, 0.18, 5.5)
-	marker.CFrame = CFrame.new(district.Center + Vector3.new(0, 0.12, 0))
+	marker.Size = Vector3.new(math.max(5.5, activity.Radius * 1.6), 0.18, math.max(5.5, activity.Radius * 1.6))
+	marker.CFrame = CFrame.new(markerPosition + Vector3.new(0, 0.12, 0))
 	marker.Anchored = true
 	marker.CanCollide = false
 	marker.CanTouch = false
@@ -154,6 +155,7 @@ local function beginActivity()
 	activityIndex = (activityIndex % #WorldConfig.ACTIVITIES) + 1
 	activeActivity = WorldConfig.ACTIVITIES[activityIndex]
 	cycleId += 1
+	completedUsers = {}
 	activeUntil = workspace:GetServerTimeNow() + activeActivity.Duration
 	nextAt = 0
 
@@ -183,8 +185,10 @@ local function stepPlayer(player, dt)
 	if not activeActivity or player:GetAttribute("DataReady") ~= true then return end
 	local session = sessions[player]
 	if not session or session.Cycle ~= cycleId then
-		session = {Cycle = cycleId, Progress = 0, Completed = false}
+		local completed = completedUsers[player.UserId] == true
+		session = {Cycle = cycleId, Progress = 0, Completed = completed}
 		sessions[player] = session
+		setPlayerState(player, activeActivity, 0, completed)
 	end
 	if session.Completed then return end
 
@@ -192,14 +196,15 @@ local function stepPlayer(player, dt)
 	local district = WorldConfig.GetDistrictById(activeActivity.DistrictId)
 	if not root or not district or heistLocked(player) then return end
 
-	local flat = Vector2.new(root.Position.X - district.Center.X, root.Position.Z - district.Center.Z)
-	if flat.Magnitude > activeActivity.Radius then return end
+	local target = activeActivity.Position or district.Center
+	if (root.Position - target).Magnitude > activeActivity.Radius then return end
 
 	session.Progress = math.min(activeActivity.RequiredSeconds, session.Progress + dt)
 	player:SetAttribute("DistrictActivityProgress", session.Progress)
 	if session.Progress >= activeActivity.RequiredSeconds then
-		session.Completed = true
 		if award(player, activeActivity.Reward) then
+			session.Completed = true
+			completedUsers[player.UserId] = true
 			player:SetAttribute("DistrictActivityCompleted", true)
 			player:SetAttribute("DistrictActivityPulse", (player:GetAttribute("DistrictActivityPulse") or 0) + 1)
 			player:SetAttribute("DistrictActivityLastReward", activeActivity.Reward)
@@ -210,8 +215,10 @@ end
 
 Players.PlayerAdded:Connect(function(player)
 	if activeActivity then
-		sessions[player] = {Cycle = cycleId, Progress = 0, Completed = false}
-		setPlayerState(player, activeActivity, 0, false)
+		local completed = completedUsers[player.UserId] == true
+		local progress = completed and activeActivity.RequiredSeconds or 0
+		sessions[player] = {Cycle = cycleId, Progress = progress, Completed = completed}
+		setPlayerState(player, activeActivity, progress, completed)
 	else
 		setPlayerState(player, nil, 0, false)
 	end
