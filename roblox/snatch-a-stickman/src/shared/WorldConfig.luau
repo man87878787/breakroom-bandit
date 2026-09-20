@@ -82,35 +82,34 @@ WorldConfig.TRANSIT_STOPS = {
 }
 
 
+WorldConfig.HOME_ISLAND = {
+	Id = "Snatchport",
+	Name = "Snatchport",
+	Subtitle = "Market • bases • heists • city harbor",
+	Center = Vector3.new(0, 0, 0),
+	Radius = 178,
+	Accent = Color3.fromRGB(82, 232, 150),
+}
+
+-- Two destination islands plus Snatchport form the three-island world.
 WorldConfig.PROGRESSION_ISLANDS = {
 	{
-		Id = "HarborCove",
-		Name = "Harbor Cove",
-		Subtitle = "Starter travel • easy contracts • calm routes",
-		Center = Vector3.new(-190, 0, 180),
-		Radius = 43,
-		RequiredUpgradeScore = 0,
-		TravelCost = 60,
-		TravelMode = "Ferry",
-		Accent = Color3.fromRGB(67, 205, 180),
-	},
-	{
-		Id = "GearworksIsle",
-		Name = "Gearworks Isle",
-		Subtitle = "Mid-game upgrades • freight tech • tougher jobs",
-		Center = Vector3.new(0, 0, 255),
-		Radius = 45,
+		Id = "Ironwake",
+		Name = "Ironwake",
+		Subtitle = "Mid-game industry • freight upgrades • risky contracts",
+		Center = Vector3.new(-430, 0, 285),
+		Radius = 148,
 		RequiredUpgradeScore = 3,
 		TravelCost = 180,
-		TravelMode = "Cargo Shuttle",
+		TravelMode = "Ferry",
 		Accent = Color3.fromRGB(255, 166, 72),
 	},
 	{
-		Id = "Skyreach",
-		Name = "Skyreach",
-		Subtitle = "Late-game mastery • rare contracts • prestige routes",
-		Center = Vector3.new(190, 0, 180),
-		Radius = 43,
+		Id = "Crownreach",
+		Name = "Crownreach",
+		Subtitle = "Late-game mastery • rare targets • prestige routes",
+		Center = Vector3.new(430, 0, 285),
+		Radius = 160,
 		RequiredUpgradeScore = 6,
 		TravelCost = 400,
 		TravelMode = "Air Taxi",
@@ -118,9 +117,19 @@ WorldConfig.PROGRESSION_ISLANDS = {
 	},
 }
 
+WorldConfig.OCEAN = {
+	Center = Vector3.new(0, -12, 130),
+	Size = Vector3.new(1800, 16, 1600),
+	WaterColor = Color3.fromRGB(29, 112, 168),
+	WaterTransparency = 0.18,
+	WaterReflectance = 0.22,
+	WaterWaveSize = 0.28,
+	WaterWaveSpeed = 17,
+}
+
 WorldConfig.ISLAND_TRAVEL = {
-	HubPosition = Vector3.new(0, 0, 108),
-	ReturnPosition = Vector3.new(0, 4, 103),
+	HubPosition = Vector3.new(0, 0, 132),
+	ReturnPosition = Vector3.new(0, 4, 125),
 	CooldownSeconds = 2.5,
 	MaxPromptDistance = 12,
 }

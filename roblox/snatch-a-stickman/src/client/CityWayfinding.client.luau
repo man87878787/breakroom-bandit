@@ -162,8 +162,8 @@ player:GetAttributeChangedSignal("IslandTravelArrival"):Connect(function()
 			return
 		end
 	end
-	if arrival == "Stickman City" then
-		showBanner("Stickman City", "Returned to the main city", Color3.fromRGB(114, 205, 255))
+	if arrival == "Snatchport" then
+		showBanner("Snatchport", "Returned to the home island", Color3.fromRGB(114, 205, 255))
 	end
 end)
 

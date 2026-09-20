@@ -1,7 +1,5 @@
 local Lighting = game:GetService("Lighting")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local world = workspace:WaitForChild("SnatchTheStickmanWorld")
 
 local old = world:FindFirstChild("LaunchPolish")
@@ -31,44 +29,37 @@ local function part(name, size, cframe, color, material, canCollide)
 end
 
 -- A readable, high-contrast evening palette gives rare stickmen and pads more visual punch.
-Lighting.ClockTime = 18.5
-Lighting.Brightness = 2
-Lighting.Ambient = Color3.fromRGB(58, 64, 82)
-Lighting.OutdoorAmbient = Color3.fromRGB(42, 48, 65)
-Lighting.EnvironmentDiffuseScale = 0.45
-Lighting.EnvironmentSpecularScale = 0.65
+Lighting.ClockTime = 17.15
+Lighting.Brightness = 2.15
+Lighting.Ambient = Color3.fromRGB(62, 68, 82)
+Lighting.OutdoorAmbient = Color3.fromRGB(72, 79, 96)
+Lighting.EnvironmentDiffuseScale = 0.62
+Lighting.EnvironmentSpecularScale = 0.72
 
 local atmosphere = Lighting:FindFirstChild("SnatchAtmosphere") or Instance.new("Atmosphere")
 atmosphere.Name = "SnatchAtmosphere"
-atmosphere.Density = 0.18
-atmosphere.Offset = 0.1
-atmosphere.Color = Color3.fromRGB(180, 194, 230)
-atmosphere.Decay = Color3.fromRGB(64, 72, 105)
-atmosphere.Glare = 0.05
-atmosphere.Haze = 1.2
+atmosphere.Density = 0.12
+atmosphere.Offset = 0.08
+atmosphere.Color = Color3.fromRGB(202, 218, 235)
+atmosphere.Decay = Color3.fromRGB(86, 105, 132)
+atmosphere.Glare = 0.02
+atmosphere.Haze = 0.72
 atmosphere.Parent = Lighting
 
 local bloom = Lighting:FindFirstChild("SnatchBloom") or Instance.new("BloomEffect")
 bloom.Name = "SnatchBloom"
-bloom.Intensity = 0.35
-bloom.Size = 24
-bloom.Threshold = 1.6
+bloom.Intensity = 0.16
+bloom.Size = 18
+bloom.Threshold = 1.9
 bloom.Parent = Lighting
 
 local color = Lighting:FindFirstChild("SnatchColor") or Instance.new("ColorCorrectionEffect")
 color.Name = "SnatchColor"
 color.Brightness = 0.01
-color.Contrast = 0.08
-color.Saturation = 0.05
-color.TintColor = Color3.fromRGB(235, 240, 255)
+color.Contrast = 0.045
+color.Saturation = 0.035
+color.TintColor = Color3.fromRGB(244, 247, 255)
 color.Parent = Lighting
-
--- Perimeter rails make the playable space feel intentional and prevent accidental falls.
-local railColor = Color3.fromRGB(48, 55, 72)
-part("NorthRail", Vector3.new(240, 3, 1.5), CFrame.new(0, 1, -119), railColor, Enum.Material.Metal, true)
-part("SouthRail", Vector3.new(240, 3, 1.5), CFrame.new(0, 1, 119), railColor, Enum.Material.Metal, true)
-part("WestRail", Vector3.new(1.5, 3, 240), CFrame.new(-119, 1, 0), railColor, Enum.Material.Metal, true)
-part("EastRail", Vector3.new(1.5, 3, 240), CFrame.new(119, 1, 0), railColor, Enum.Material.Metal, true)
 
 -- Market outline improves navigation at a glance.
 local marketEdge = Color3.fromRGB(74, 217, 148)
@@ -76,31 +67,6 @@ part("MarketEdgeN", Vector3.new(36, 0.25, 0.45), CFrame.new(0, 0.62, -37), marke
 part("MarketEdgeS", Vector3.new(36, 0.25, 0.45), CFrame.new(0, 0.62, 37), marketEdge, Enum.Material.Neon, false)
 part("MarketEdgeW", Vector3.new(0.45, 0.25, 74), CFrame.new(-17, 0.62, 0), marketEdge, Enum.Material.Neon, false)
 part("MarketEdgeE", Vector3.new(0.45, 0.25, 74), CFrame.new(17, 0.62, 0), marketEdge, Enum.Material.Neon, false)
-
--- A vertical title board makes the game identity visible from every base.
-local titleBoard = part(
-	"TitleBoard",
-	Vector3.new(30, 8, 1),
-	CFrame.new(0, 7, -40),
-	Color3.fromRGB(17, 20, 29),
-	Enum.Material.Metal,
-	false
-)
-local titleGui = Instance.new("SurfaceGui")
-titleGui.Face = Enum.NormalId.Front
-titleGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-titleGui.PixelsPerStud = 30
-titleGui.Parent = titleBoard
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.fromScale(1, 1)
-title.BackgroundTransparency = 1
-title.Text = string.upper(Config.GAME_NAME)
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextStrokeTransparency = 0.65
-title.TextScaled = true
-title.Font = Enum.Font.GothamBlack
-title.Parent = titleGui
 
 -- Lit paths connect every base to the market, clarifying the raid/escape routes.
 for plotIndex = 1, 6 do
@@ -117,7 +83,7 @@ for plotIndex = 1, 6 do
 		Vector3.new(7, 0.16, length),
 		CFrame.lookAt(midpoint, Vector3.new(0, midpoint.Y, 0)),
 		Color3.fromRGB(37, 42, 55),
-		Enum.Material.SmoothPlastic,
+		Enum.Material.Asphalt,
 		false
 	)
 	path.Transparency = 0.12

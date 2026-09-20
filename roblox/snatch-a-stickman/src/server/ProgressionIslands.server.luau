@@ -1,10 +1,8 @@
--- Three lightweight progression islands with server-authoritative travel.
--- The islands add space and progression without turning the center city into visual clutter.
+-- Server-authoritative travel and authored landmarks for the two destination islands.
+-- Two destination islands plus Snatchport create a spacious three-island progression world.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Terrain = workspace.Terrain
-
 local WorldConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WorldConfig"))
 local remotes = ReplicatedStorage:WaitForChild("GameRemotes")
 local toastRemote = remotes:WaitForChild("Toast")
@@ -120,20 +118,6 @@ local function billboard(target, titleText, subtitleText, color)
 	subtitle.Parent = gui
 end
 
-local function disc(parent, name, center, diameter, height, color, material, y)
-	local item = part(
-		parent,
-		name,
-		Vector3.new(height, diameter, diameter),
-		CFrame.new(center + Vector3.new(0, y, 0)) * CFrame.Angles(0, 0, math.rad(90)),
-		color,
-		material,
-		true
-	)
-	item.Shape = Enum.PartType.Cylinder
-	return item
-end
-
 local function makeLamp(parent, name, position, accent)
 	decorCount += 1
 	local m = model(parent, name)
@@ -233,10 +217,101 @@ local function buildDecor(parent, island, tier)
 	makeBench(parent, "BenchB", c + Vector3.new(r * 0.32, 0, -r * 0.38), math.rad(-32))
 	makeCrates(parent, "CargoStack", c + Vector3.new(-r * 0.45, 0, -r * 0.43), island.Accent)
 	makePlanter(parent, "Planter", c + Vector3.new(r * 0.43, 0, r * 0.38), island.Accent)
-	makeTerminal(parent, "UpgradeTerminal", c + Vector3.new(0, 0, r * 0.48), island.Accent, "UPGRADE TIER " .. tostring(tier))
+	makeTerminal(parent, "UpgradeTerminal", c + Vector3.new(0, 0, r * 0.48), island.Accent, "REQUIRES SCORE " .. tostring(island.RequiredUpgradeScore))
 	makeBeacon(parent, "DockBeacon", c + Vector3.new(0, 0, -r * 0.58), island.Accent)
 	makeLandmark(parent, "IslandLandmark", c + Vector3.new(0, 0, 3), island.Accent, tier)
 	makePlanter(parent, "CenterPlanter", c + Vector3.new(r * 0.30, 0, 2), island.Accent)
+end
+
+local function makeBuilding(parent, name, center, size, accent, titleText, material)
+	decorCount += 1
+	local m = model(parent, name)
+	local width, height, depth = size.X, size.Y, size.Z
+	local base = CFrame.new(center)
+	part(m, "Floor", Vector3.new(width, 0.6, depth), base * CFrame.new(0, 0.3, 0), Color3.fromRGB(63, 66, 72), Enum.Material.Concrete, true)
+	part(m, "Roof", Vector3.new(width, 0.7, depth), base * CFrame.new(0, height, 0), COLORS.Metal, Enum.Material.Metal, true)
+	part(m, "Back", Vector3.new(width, height, 0.7), base * CFrame.new(0, height / 2, depth / 2), COLORS.Dark, material or Enum.Material.Concrete, true)
+	part(m, "Left", Vector3.new(0.7, height, depth), base * CFrame.new(-width / 2, height / 2, 0), COLORS.Dark, material or Enum.Material.Concrete, true)
+	part(m, "Right", Vector3.new(0.7, height, depth), base * CFrame.new(width / 2, height / 2, 0), COLORS.Dark, material or Enum.Material.Concrete, true)
+	part(m, "FrontL", Vector3.new(width * 0.32, height, 0.7), base * CFrame.new(-width * 0.34, height / 2, -depth / 2), COLORS.Dark, material or Enum.Material.Concrete, true)
+	part(m, "FrontR", Vector3.new(width * 0.32, height, 0.7), base * CFrame.new(width * 0.34, height / 2, -depth / 2), COLORS.Dark, material or Enum.Material.Concrete, true)
+	local sign = part(m, "Sign", Vector3.new(width * 0.52, 2, 0.18), base * CFrame.new(0, height * 0.72, -depth / 2 - 0.4), Color3.fromRGB(18, 21, 29), Enum.Material.Metal, false)
+	surfaceLabel(sign, titleText, accent)
+	neon(m, "Trim", Vector3.new(width * 0.72, 0.16, 0.16), base * CFrame.new(0, height - 0.4, -depth / 2 - 0.42), accent, 0.18)
+	return m
+end
+
+local function makeCrane(parent, center, accent)
+	decorCount += 1
+	local m = model(parent, "FreightCrane")
+	part(m, "Tower", Vector3.new(2.4, 24, 2.4), CFrame.new(center + Vector3.new(0, 12, 0)), COLORS.Metal, Enum.Material.Metal, true)
+	part(m, "Boom", Vector3.new(32, 1.4, 1.4), CFrame.new(center + Vector3.new(10, 23, 0)), COLORS.Metal, Enum.Material.Metal, false)
+	part(m, "Counterweight", Vector3.new(5, 3.2, 3.2), CFrame.new(center + Vector3.new(-7, 21.8, 0)), Color3.fromRGB(80, 84, 90), Enum.Material.Metal, false)
+	part(m, "Cable", Vector3.new(0.22, 11, 0.22), CFrame.new(center + Vector3.new(22, 16.8, 0)), Color3.fromRGB(24, 26, 30), Enum.Material.Metal, false)
+	local hook = neon(m, "Hook", Vector3.new(1.2, 1.2, 1.2), CFrame.new(center + Vector3.new(22, 11, 0)), accent, 0.12)
+	hook.Shape = Enum.PartType.Ball
+	return m
+end
+
+local function makeLookout(parent, center, accent)
+	decorCount += 1
+	local m = model(parent, "CrownLookout")
+	part(m, "Tower", Vector3.new(8, 22, 8), CFrame.new(center + Vector3.new(0, 11, 0)), Color3.fromRGB(58, 61, 72), Enum.Material.Concrete, true)
+	part(m, "Deck", Vector3.new(20, 0.8, 20), CFrame.new(center + Vector3.new(0, 20.5, 0)), COLORS.Metal, Enum.Material.Metal, true)
+	for _, offset in ipairs({
+		Vector3.new(-8.8, 22, -8.8), Vector3.new(8.8, 22, -8.8),
+		Vector3.new(-8.8, 22, 8.8), Vector3.new(8.8, 22, 8.8),
+	}) do
+		part(m, "RailPost", Vector3.new(0.45, 3.4, 0.45), CFrame.new(center + offset), COLORS.Metal, Enum.Material.Metal, false)
+	end
+	local crown = neon(m, "CrownLight", Vector3.new(4.5, 0.55, 4.5), CFrame.new(center + Vector3.new(0, 24.2, 0)), accent, 0.05)
+	local light = Instance.new("PointLight")
+	light.Color = accent
+	light.Brightness = 1.1
+	light.Range = 22
+	light.Shadows = false
+	light.Parent = crown
+	return m
+end
+
+local function makeFerry(parent, center, accent)
+	decorCount += 1
+	local m = model(parent, "HarborFerry")
+	part(m, "Hull", Vector3.new(28, 3.2, 10), CFrame.new(center + Vector3.new(0, 0.6, 0)), Color3.fromRGB(43, 50, 61), Enum.Material.Metal, false)
+	part(m, "Deck", Vector3.new(24, 0.7, 8), CFrame.new(center + Vector3.new(0, 2.4, 0)), Color3.fromRGB(104, 86, 66), Enum.Material.WoodPlanks, false)
+	part(m, "Cabin", Vector3.new(8, 5, 7), CFrame.new(center + Vector3.new(-5, 5.1, 0)), Color3.fromRGB(220, 224, 229), Enum.Material.Metal, false)
+	local glass = part(m, "Windshield", Vector3.new(0.2, 2.4, 5.4), CFrame.new(center + Vector3.new(-0.9, 5.5, 0)), Color3.fromRGB(93, 164, 196), Enum.Material.Glass, false, 0.25)
+	glass.CanQuery = false
+	neon(m, "Stripe", Vector3.new(24.4, 0.22, 0.22), CFrame.new(center + Vector3.new(0, 1.1, -5.1)), accent, 0.08)
+	return m
+end
+
+local function makeAirTaxi(parent, center, accent)
+	decorCount += 1
+	local m = model(parent, "HarborAirTaxi")
+	part(m, "Body", Vector3.new(15, 3.8, 5.5), CFrame.new(center + Vector3.new(0, 4, 0)), Color3.fromRGB(60, 65, 78), Enum.Material.Metal, false)
+	part(m, "Wing", Vector3.new(7.5, 0.55, 20), CFrame.new(center + Vector3.new(0, 4.2, 0)), Color3.fromRGB(48, 52, 63), Enum.Material.Metal, false)
+	part(m, "Tail", Vector3.new(4, 4.5, 0.7), CFrame.new(center + Vector3.new(-6.2, 6.2, 0)), Color3.fromRGB(48, 52, 63), Enum.Material.Metal, false)
+	local cockpit = part(m, "Cockpit", Vector3.new(4.8, 2.4, 5.1), CFrame.new(center + Vector3.new(3.7, 5.1, 0)), Color3.fromRGB(105, 177, 214), Enum.Material.Glass, false, 0.22)
+	cockpit.CanQuery = false
+	neon(m, "RunningLightL", Vector3.new(0.4, 0.4, 0.4), CFrame.new(center + Vector3.new(0, 4.5, -10)), accent, 0.03)
+	neon(m, "RunningLightR", Vector3.new(0.4, 0.4, 0.4), CFrame.new(center + Vector3.new(0, 4.5, 10)), accent, 0.03)
+	return m
+end
+
+local function buildIslandArchitecture(parent, island, tier)
+	local c = island.Center
+	if island.Id == "Ironwake" then
+		makeBuilding(parent, "IronwakeFoundry", c + Vector3.new(-42, 0, 24), Vector3.new(34, 13, 24), island.Accent, "IRONWAKE FOUNDRY", Enum.Material.Brick)
+		makeBuilding(parent, "FreightHouse", c + Vector3.new(48, 0, 18), Vector3.new(28, 11, 22), island.Accent, "FREIGHT HOUSE", Enum.Material.Metal)
+		makeCrane(parent, c + Vector3.new(12, 0, 68), island.Accent)
+		part(parent, "FreightRoad", Vector3.new(112, 0.28, 10), CFrame.new(c + Vector3.new(0, 0.08, 12)), Color3.fromRGB(45, 48, 55), Enum.Material.Asphalt, true)
+	else
+		makeBuilding(parent, "CrownHall", c + Vector3.new(-38, 0, 22), Vector3.new(32, 13, 24), island.Accent, "CROWN HALL", Enum.Material.Marble)
+		makeBuilding(parent, "ArchiveHouse", c + Vector3.new(44, 0, 28), Vector3.new(26, 10, 20), island.Accent, "RARE ARCHIVE", Enum.Material.Concrete)
+		makeLookout(parent, c + Vector3.new(8, 0, 72), island.Accent)
+		part(parent, "CrownWalk", Vector3.new(116, 0.28, 9), CFrame.new(c + Vector3.new(0, 0.08, 14)), Color3.fromRGB(63, 65, 76), Enum.Material.Pavement, true)
+	end
 end
 
 local function buildIsland(island, tier)
@@ -246,9 +321,16 @@ local function buildIsland(island, tier)
 	m:SetAttribute("RequiredUpgradeScore", island.RequiredUpgradeScore)
 	m:SetAttribute("TravelCost", island.TravelCost)
 
-	disc(m, "RockBase", island.Center, island.Radius * 2.15, 7, COLORS.Rock, Enum.Material.Slate, -3.4)
-	disc(m, "Ground", island.Center, island.Radius * 1.95, 2.1, tier == 2 and COLORS.Metal or COLORS.Grass, tier == 2 and Enum.Material.Metal or Enum.Material.Grass, -0.95)
-	disc(m, "WalkRing", island.Center, island.Radius * 1.15, 0.45, Color3.fromRGB(65, 70, 82), Enum.Material.Concrete, 0.04)
+	-- Terrain owns the coastline. Keep only a small authored arrival plaza here.
+	part(
+		m,
+		"ArrivalPlaza",
+		Vector3.new(28, 0.45, 22),
+		CFrame.new(island.Center + Vector3.new(0, 0.18, -island.Radius * 0.22)),
+		Color3.fromRGB(56, 61, 72),
+		Enum.Material.Concrete,
+		true
+	)
 
 	local sign = part(m, "IslandSign", Vector3.new(17, 4.8, 0.5), CFrame.new(island.Center + Vector3.new(0, 6.2, -island.Radius * 0.58)), COLORS.Dark, Enum.Material.Metal, false)
 	surfaceLabel(
@@ -261,11 +343,9 @@ local function buildIsland(island, tier)
 	decor.Name = "Decor"
 	decor.Parent = m
 	buildDecor(decor, island, tier)
+	buildIslandArchitecture(decor, island, tier)
 	return m
 end
-
--- A shallow water field visually separates the central city from the progression islands.
-Terrain:FillBlock(CFrame.new(0, -6, 115), Vector3.new(600, 10, 470), Enum.Material.Water)
 
 for index, island in ipairs(WorldConfig.PROGRESSION_ISLANDS) do
 	buildIsland(island, index)
@@ -352,9 +432,9 @@ local function travel(player, source, island, destination, free)
 	local character = player.Character
 	if not character then return end
 	character:PivotTo(CFrame.new(destination + Vector3.new(0, 4, 0)))
-	player:SetAttribute("IslandTravelArrival", island and island.Name or "Stickman City")
+	player:SetAttribute("IslandTravelArrival", island and island.Name or "Snatchport")
 	player:SetAttribute("IslandTravelPulse", (player:GetAttribute("IslandTravelPulse") or 0) + 1)
-	toast(player, island and ("Arrived at " .. island.Name .. ".") or "Returned to Stickman City.")
+	toast(player, island and ("Arrived at " .. island.Name .. ".") or "Returned to Snatchport.")
 end
 
 local function travelNPC(parent, name, role, position, accent, action, objectText, callback)
@@ -387,14 +467,17 @@ end
 
 local hub = model(travelFolder, "CityHarbor")
 local hubPosition = WorldConfig.ISLAND_TRAVEL.HubPosition
-part(hub, "Dock", Vector3.new(32, 0.8, 15), CFrame.new(hubPosition + Vector3.new(0, 0.4, 0)), Color3.fromRGB(73, 62, 50), Enum.Material.WoodPlanks, true)
+part(hub, "Dock", Vector3.new(58, 0.8, 18), CFrame.new(hubPosition + Vector3.new(0, 0.4, 0)), Color3.fromRGB(73, 62, 50), Enum.Material.WoodPlanks, true)
+part(hub, "FerryPier", Vector3.new(12, 0.8, 72), CFrame.new(hubPosition + Vector3.new(-20, 0.35, 34)), Color3.fromRGB(73, 62, 50), Enum.Material.WoodPlanks, true)
+part(hub, "AirPad", Vector3.new(25, 0.5, 25), CFrame.new(hubPosition + Vector3.new(22, 0.2, 12)), Color3.fromRGB(53, 57, 67), Enum.Material.Concrete, true)
 local hubSign = part(hub, "Sign", Vector3.new(16, 3.5, 0.4), CFrame.new(hubPosition + Vector3.new(0, 5.3, -6.4)), COLORS.Dark, Enum.Material.Metal, false)
-surfaceLabel(hubSign, "ISLAND HARBOR\nRIDES SCALE WITH YOUR UPGRADES", Color3.fromRGB(114, 205, 255))
+surfaceLabel(hubSign, "SNATCHPORT HARBOR\nFERRY • AIR TAXI", Color3.fromRGB(114, 205, 255))
+makeFerry(hub, hubPosition + Vector3.new(-20, -5, 72), WorldConfig.PROGRESSION_ISLANDS[1].Accent)
+makeAirTaxi(hub, hubPosition + Vector3.new(22, 0, 12), WorldConfig.PROGRESSION_ISLANDS[2].Accent)
 
 local vendors = {
-	{Name = "Bo", Role = "Ferry Captain", Offset = Vector3.new(-9, 0, 0)},
-	{Name = "Rook", Role = "Cargo Shuttle Operator", Offset = Vector3.new(0, 0, 0)},
-	{Name = "Nova", Role = "Air Taxi Pilot", Offset = Vector3.new(9, 0, 0)},
+	{Name = "Marlow", Role = "Ironwake Ferry Captain", Offset = Vector3.new(-10, 0, 0)},
+	{Name = "Astra", Role = "Crownreach Air Taxi Pilot", Offset = Vector3.new(10, 0, 0)},
 }
 
 for index, island in ipairs(WorldConfig.PROGRESSION_ISLANDS) do
@@ -420,7 +503,7 @@ for index, island in ipairs(WorldConfig.PROGRESSION_ISLANDS) do
 		returnPosition,
 		island.Accent,
 		"Return Free",
-		"Stickman City",
+		"Snatchport",
 		function(player, source)
 			travel(player, source, nil, WorldConfig.ISLAND_TRAVEL.ReturnPosition, true)
 		end
@@ -436,7 +519,7 @@ Players.PlayerRemoving:Connect(function(player)
 	cooldownUntil[player] = nil
 end)
 
-root:SetAttribute("IslandCount", #WorldConfig.PROGRESSION_ISLANDS)
+root:SetAttribute("IslandCount", 1 + #WorldConfig.PROGRESSION_ISLANDS)
 root:SetAttribute("DecorModelCount", decorCount)
 root:SetAttribute("TravelIsServerAuthoritative", true)
 root:SetAttribute("UsesPhysicsVehicles", false)

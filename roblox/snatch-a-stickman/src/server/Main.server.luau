@@ -48,13 +48,8 @@ local function makePart(name, size, cframe, color, material)
 	return part
 end
 
-makePart(
-	"Ground",
-	Vector3.new(240, 1, 240),
-	CFrame.new(0, -1, 0),
-	Color3.fromRGB(22, 24, 30),
-	Enum.Material.Slate
-)
+-- The visible world foundation is authored as Terrain in WorldTerrain.server.luau.
+-- Gameplay structures stay as Parts so collision and heist routes remain deterministic.
 
 local marketFloor = makePart(
 	"Market",

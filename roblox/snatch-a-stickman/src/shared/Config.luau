@@ -61,16 +61,13 @@ Config.TRANSIT_EXIT_HEIGHT = 4
 -- Local movement presentation. Visual only; gameplay movement remains server-authoritative.
 Config.MOVEMENT_PRESENTATION = {
 	Enabled = true,
-	ForwardLeanDegrees = 5.5,
-	SideLeanDegrees = 4.25,
-	AirTiltDegrees = 2.5,
-	BobHeight = 0.04,
-	BobFrequency = 9.5,
-	LandingDip = 0.05,
-	LandingRecovery = 0.45,
-	Response = 14,
-	MinSpeed = 1.25,
-	TouchScale = 0.72,
+	ForwardLeanDegrees = 2.0,
+	SideLeanDegrees = 2.8,
+	LandingDip = 0.018,
+	LandingRecovery = 0.22,
+	Response = 18,
+	MinSpeed = 1.5,
+	TouchScale = 0.58,
 }
 
 -- Session missions

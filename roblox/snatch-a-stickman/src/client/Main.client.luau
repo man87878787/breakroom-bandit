@@ -59,6 +59,7 @@ local function makeText(parent, name, position, size, text, textColor, font, tex
 end
 
 local title = Instance.new("TextLabel")
+title.Name = "Title"
 title.AnchorPoint = Vector2.new(0.5, 0)
 title.Position = UDim2.fromScale(0.5, 0.018)
 title.Size = UDim2.new(0.38, 0, 0, 46)
@@ -68,6 +69,7 @@ title.Text = "SNATCH THE STICKMAN"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextScaled = true
 title.Font = Enum.Font.GothamBlack
+title.Visible = false
 title.Parent = root
 corner(title, 14)
 stroke(title, 0.5)
@@ -78,6 +80,7 @@ titlePadding.PaddingRight = UDim.new(0, 16)
 titlePadding.Parent = title
 
 local stats = Instance.new("Frame")
+stats.Name = "Stats"
 stats.AnchorPoint = Vector2.new(1, 0)
 stats.Position = UDim2.new(0.985, 0, 0.025, 0)
 stats.Size = UDim2.fromOffset(255, 142)
@@ -98,11 +101,13 @@ local coinScale = Instance.new("UIScale")
 coinScale.Parent = coinsLabel
 
 local missions = Instance.new("Frame")
+missions.Name = "Missions"
 missions.AnchorPoint = Vector2.new(0, 1)
 missions.Position = UDim2.new(0.018, 0, 0.93, 0)
 missions.Size = UDim2.fromOffset(330, 146)
 missions.BackgroundColor3 = Color3.fromRGB(15, 18, 26)
 missions.BackgroundTransparency = 0.1
+missions.Visible = false
 missions.Parent = root
 corner(missions, 14)
 stroke(missions, 0.58)
@@ -114,6 +119,7 @@ local snatchMission = makeText(missions, "Snatch", UDim2.fromOffset(14, 94), UDi
 local missionFooter = makeText(missions, "Footer", UDim2.fromOffset(14, 120), UDim2.new(1, -28, 0, 18), "Complete missions for bonus coins.", Color3.fromRGB(160, 168, 190), Enum.Font.GothamMedium, 11)
 
 local shieldStatus = Instance.new("TextLabel")
+shieldStatus.Name = "ShieldStatus"
 shieldStatus.AnchorPoint = Vector2.new(1, 1)
 shieldStatus.Position = UDim2.new(0.982, 0, 0.94, 0)
 shieldStatus.Size = UDim2.fromOffset(235, 40)
@@ -127,6 +133,7 @@ corner(shieldStatus, 12)
 stroke(shieldStatus, 0.6)
 
 local dataStatus = makeText(root, "DataStatus", UDim2.new(0.018, 0, 0.025, 0), UDim2.fromOffset(210, 24), "Profile: loading…", Color3.fromRGB(176, 185, 209), Enum.Font.GothamMedium, 12)
+dataStatus.Visible = false
 
 local carryBanner = Instance.new("TextLabel")
 carryBanner.Name = "CarryBanner"
@@ -176,6 +183,7 @@ local threatScale = Instance.new("UIScale")
 threatScale.Parent = threatBanner
 
 local hint = Instance.new("TextLabel")
+hint.Name = "Hint"
 hint.AnchorPoint = Vector2.new(0.5, 1)
 hint.Position = UDim2.fromScale(0.5, 0.985)
 hint.Size = UDim2.new(0.72, 0, 0, 28)
@@ -184,6 +192,7 @@ hint.Text = "Recruit • Upgrade • Earn • Snatch • Escape • Defend"
 hint.TextColor3 = Color3.fromRGB(218, 224, 239)
 hint.TextScaled = true
 hint.Font = Enum.Font.GothamMedium
+hint.Visible = false
 hint.Parent = root
 
 local toast = Instance.new("TextLabel")
