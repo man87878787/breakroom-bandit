@@ -24,7 +24,8 @@ local function publish(player, session)
 	local crew = player:GetAttribute("CrewCount") or 0
 	local income = player:GetAttribute("IncomePerTick") or 0
 	local snatches = session.snatches.Value
-	local score = crew * 20 + math.floor(session.earned.Value / 20) + snatches * 80
+	local discoveries = player:GetAttribute("DiscoveryCount") or 0
+	local score = crew * 20 + math.floor(session.earned.Value / 20) + snatches * 80 + discoveries * 45
 
 	local stage
 	if crew < 1 then
@@ -33,8 +34,10 @@ local function publish(player, session)
 		stage = "Build income to $7/tick"
 	elseif snatches < 1 then
 		stage = "Secure your first rival stickman"
+	elseif discoveries < 3 then
+		stage = "Discover 3 Stickman Index rarities"
 	elseif elapsed < 360 then
-		stage = "Grow your crew and protect your base"
+		stage = "Grow your crew, index, and protect your base"
 	else
 		stage = "Push upgrades and extend your snatch streak"
 	end
@@ -79,6 +82,7 @@ local function start(player)
 	snatches.Changed:Connect(refresh)
 	player:GetAttributeChangedSignal("CrewCount"):Connect(refresh)
 	player:GetAttributeChangedSignal("IncomePerTick"):Connect(refresh)
+	player:GetAttributeChangedSignal("DiscoveryCount"):Connect(refresh)
 	refresh()
 
 	task.spawn(function()
