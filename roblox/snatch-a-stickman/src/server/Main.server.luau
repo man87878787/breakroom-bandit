@@ -336,6 +336,11 @@ local function refreshState(player, state)
 	local plot = openPlots[state.PlotIndex]
 	if plot and plot.Owner == player then
 		plot.Label.Text = string.format("%s's Base\n%d/%d • +$%d/tick", player.DisplayName, #state.Sidekicks, capacity, effectiveIncome)
+		plot.Model:SetAttribute("OwnerUserId", player.UserId)
+		plot.Model:SetAttribute("OwnerDisplayName", player.DisplayName)
+		plot.Model:SetAttribute("ShieldUntilServerTime", player:GetAttribute("ShieldUntilServerTime") or 0)
+		plot.Model:SetAttribute("ShieldReadyServerTime", player:GetAttribute("ShieldReadyServerTime") or 0)
+		plot.Model:SetAttribute("JoinProtectionUntilServerTime", player:GetAttribute("JoinProtectionUntilServerTime") or 0)
 	end
 end
 
