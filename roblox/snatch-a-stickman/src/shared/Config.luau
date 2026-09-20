@@ -105,6 +105,24 @@ Config.MASTERY_LEVEL_REWARD_STEP = 35
 Config.MASTERY_INCOME_BONUS_PER_LEVEL = 0.01
 Config.MASTERY_INCOME_BONUS_CAP = 0.25
 
+-- Repeatable heist contracts. Centralized here so pacing/rewards can be tuned without touching server logic.
+Config.HEIST_CONTRACTS = {
+	SecuresPerTier = 3,
+	Names = {"QUICK LIFT", "BASE BREAKER", "HIGH VALUE HEIST", "CREW RAID", "MASTER SNATCH", "LEGEND RUN"},
+	BaseReward = 100,
+	RewardPerTier = 55,
+	MaxReward = 1200,
+	BaseStreakGoal = 2,
+	StreakGoalEveryTiers = 2,
+	MaxStreakGoal = 6,
+	BaseStreakBonus = 80,
+	StreakBonusPerTier = 45,
+	MaxStreakBonus = 900,
+	RouteBaseReward = 110,
+	RouteRewardPerMastery = 25,
+	RouteMaxReward = 650,
+}
+
 Config.DIVERSITY_BONUS_PER_EXTRA_RARITY = 0.03
 Config.DIVERSITY_BONUS_CAP = 0.12
 

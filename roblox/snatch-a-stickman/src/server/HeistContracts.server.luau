@@ -1,38 +1,33 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local contractConfig = Config.HEIST_CONTRACTS
+
 local remotes = ReplicatedStorage:WaitForChild("GameRemotes")
 local toastRemote = remotes:WaitForChild("Toast")
 
-local STEP = 3
+local STEP = contractConfig.SecuresPerTier
 local sessions = {}
 
-local NAMES = {
-	"QUICK LIFT",
-	"BASE BREAKER",
-	"HIGH VALUE HEIST",
-	"CREW RAID",
-	"MASTER SNATCH",
-	"LEGEND RUN",
-}
-
 local function rewardFor(completed)
-	return math.min(1200, 100 + completed * 55)
+	return math.min(contractConfig.MaxReward, contractConfig.BaseReward + completed * contractConfig.RewardPerTier)
 end
 
 local function streakGoalFor(completed)
-	return math.min(6, 2 + math.floor(completed / 2))
+	return math.min(contractConfig.MaxStreakGoal, contractConfig.BaseStreakGoal + math.floor(completed / contractConfig.StreakGoalEveryTiers))
 end
 
 local function bonusFor(completed)
-	return math.min(900, 80 + completed * 45)
+	return math.min(contractConfig.MaxStreakBonus, contractConfig.BaseStreakBonus + completed * contractConfig.StreakBonusPerTier)
 end
 
 local function contractName(completed)
-	return NAMES[math.min(#NAMES, completed + 1)]
+	return contractConfig.Names[math.min(#contractConfig.Names, completed + 1)]
 end
+
 local function routeRewardFor(versatility)
-	return math.min(650, 110 + math.max(0, versatility) * 25)
+	return math.min(contractConfig.RouteMaxReward, contractConfig.RouteBaseReward + math.max(0, versatility) * contractConfig.RouteRewardPerMastery)
 end
 
 local function publishRoute(player, fast, sky)
