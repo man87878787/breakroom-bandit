@@ -1,5 +1,5 @@
--- Dual secure-zone guidance tied directly to the authored Fast Lane / Sky Route network.
--- Presentation only: the server remains authoritative for carry state and securing.
+-- Threat-aware dual secure-zone guidance tied to the authored Fast Lane / Sky Route network.
+-- Presentation only: the server remains authoritative for carry state, interception, and securing.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
@@ -12,9 +12,14 @@ local PAD_COLORS = {
 	A = Color3.fromRGB(75, 255, 150),
 	B = Color3.fromRGB(80, 225, 255),
 }
+local ROUTE_TRAITS = {
+	FAST = {label = "QUICK / EXPOSED", riskWeight = 1.35},
+	SKY = {label = "LONG / SAFER", riskWeight = 0.72},
+}
+local THREAT_RADIUS = 42
+local THREAT_SCORE = 54
 
 local presentations = {}
-local routeAssignments = {}
 local accumulator = 0
 
 local function clear()
@@ -24,7 +29,6 @@ local function clear()
 		if item.routeGui then item.routeGui:Destroy() end
 	end
 	table.clear(presentations)
-	table.clear(routeAssignments)
 end
 
 local function routePart(model, name)
@@ -36,9 +40,6 @@ local function chooseAssignments(neighborhood, padA, padB)
 	local ground = routePart(neighborhood, "GroundLaneGuide")
 	local sky = routePart(neighborhood, "SkyGuide")
 	if not ground or not sky or not padA or not padB then return nil end
-
-	-- Pick the pairing that creates the shortest combined route-to-deposit travel.
-	-- This keeps the authored route system correct for every plot orientation without hard-coded sides.
 	local direct = (ground.Position - padA.Position).Magnitude + (sky.Position - padB.Position).Magnitude
 	local crossed = (ground.Position - padB.Position).Magnitude + (sky.Position - padA.Position).Magnitude
 	if direct <= crossed then
@@ -92,52 +93,55 @@ local function addPresentation(assignment)
 	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 	highlight.Parent = assignment.pad
 
-	local gui, label = makeBillboard(
-		assignment.pad,
-		"LocalSecureChoice",
-		string.format("SECURE %s • %s ROUTE", assignment.padName, assignment.routeName),
-		color,
-		Vector3.new(0, 3, 0),
-		205
-	)
-	local routeGui, routeLabel = makeBillboard(
-		assignment.route,
-		"LocalRouteDestination",
-		string.format("%s → SECURE %s", assignment.routeName, assignment.padName),
-		color,
-		Vector3.new(0, 2.2, 0),
-		185
-	)
+	local trait = ROUTE_TRAITS[assignment.routeName]
+	local gui, label = makeBillboard(assignment.pad, "LocalSecureChoice",
+		string.format("SECURE %s • %s", assignment.padName, assignment.routeName), color, Vector3.new(0, 3, 0), 205)
+	local routeGui, routeLabel = makeBillboard(assignment.route, "LocalRouteDestination",
+		string.format("%s • %s", assignment.routeName, trait.label), color, Vector3.new(0, 2.2, 0), 210)
 
 	table.insert(presentations, {
-		highlight = highlight,
-		gui = gui,
-		label = label,
-		routeGui = routeGui,
-		routeLabel = routeLabel,
-		assignment = assignment,
+		highlight = highlight, gui = gui, label = label,
+		routeGui = routeGui, routeLabel = routeLabel, assignment = assignment,
 	})
 end
 
 local function rebuild()
 	clear()
 	if not player:GetAttribute("CarryRarity") then return end
-
 	local plotIndex = tonumber(player:GetAttribute("PlotIndex"))
 	local plot = plotIndex and world:FindFirstChild("Plot" .. plotIndex)
 	local neighborhood = plotIndex and neighborhoods:FindFirstChild("BaseNeighborhood" .. plotIndex)
 	if not plot or not neighborhood then return end
-
 	local padA = plot:FindFirstChild("SecurePad")
 	local padB = plot:FindFirstChild("SecurePad2")
 	if not (padA and padA:IsA("BasePart") and padB and padB:IsA("BasePart")) then return end
-
 	local assignments = chooseAssignments(neighborhood, padA, padB)
 	if not assignments then return end
-	routeAssignments = assignments
-	for _, assignment in ipairs(assignments) do
-		addPresentation(assignment)
+	for _, assignment in ipairs(assignments) do addPresentation(assignment) end
+end
+
+local function activeCarryThreat()
+	for _, stickman in ipairs(world:GetChildren()) do
+		if stickman:IsA("Model") and stickman:GetAttribute("TransferState") == "InTransit"
+			and tonumber(stickman:GetAttribute("CarrierUserId")) == player.UserId then
+			local victimId = tonumber(stickman:GetAttribute("PreviousOwnerUserId")) or 0
+			local defender = Players:GetPlayerByUserId(victimId)
+			local root = defender and defender.Character and defender.Character:FindFirstChild("HumanoidRootPart")
+			return root, stickman:GetAttribute("Contested") == true
+		end
 	end
+	return nil, false
+end
+
+local function routeScore(rootPosition, assignment, defenderRoot, contested)
+	local routePosition = assignment.route.Position
+	local travel = (rootPosition - routePosition).Magnitude + (routePosition - assignment.pad.Position).Magnitude
+	if not defenderRoot then return travel, false end
+	local defenderDistance = (defenderRoot.Position - routePosition).Magnitude
+	local proximity = math.clamp(1 - defenderDistance / THREAT_RADIUS, 0, 1)
+	local trait = ROUTE_TRAITS[assignment.routeName]
+	local pressure = proximity * THREAT_SCORE * trait.riskWeight * (contested and 1.35 or 1)
+	return travel + pressure, proximity > 0.25
 end
 
 player:GetAttributeChangedSignal("CarryRarity"):Connect(rebuild)
@@ -151,45 +155,33 @@ RunService.Heartbeat:Connect(function(dt)
 	accumulator += dt
 	if accumulator < 0.15 then return end
 	accumulator = 0
-
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if not root then return end
+	local defenderRoot, contested = activeCarryThreat()
 
 	local bestPresentation = nil
 	local bestScore = math.huge
+	local threatByPresentation = {}
 	for _, presentation in ipairs(presentations) do
 		local assignment = presentation.assignment
-		local pad = assignment.pad
-		local route = assignment.route
-		if pad.Parent and route.Parent then
-			-- Recommend a route using the player's current approach cost plus the route-to-pad leg.
-			-- It is advisory only and never changes secure authority or rewards.
-			local score = (root.Position - route.Position).Magnitude + (route.Position - pad.Position).Magnitude
-			if score < bestScore then
-				bestScore = score
-				bestPresentation = presentation
-			end
+		if assignment.pad.Parent and assignment.route.Parent then
+			local score, threatened = routeScore(root.Position, assignment, defenderRoot, contested)
+			threatByPresentation[presentation] = threatened
+			if score < bestScore then bestScore, bestPresentation = score, presentation end
 		end
 	end
 
 	for _, presentation in ipairs(presentations) do
 		local assignment = presentation.assignment
+		local trait = ROUTE_TRAITS[assignment.routeName]
 		local distance = (root.Position - assignment.pad.Position).Magnitude
 		local recommended = presentation == bestPresentation
+		local threatened = threatByPresentation[presentation] == true
 		presentation.highlight.FillTransparency = distance < 24 and 0.24 or (recommended and 0.42 or 0.62)
 		presentation.highlight.OutlineTransparency = recommended and 0.02 or 0.2
-		presentation.label.Text = string.format(
-			"%sSECURE %s • %s ROUTE",
-			recommended and "★ " or "",
-			assignment.padName,
-			assignment.routeName
-		)
-		presentation.routeLabel.Text = string.format(
-			"%s%s → SECURE %s",
-			recommended and "★ " or "",
-			assignment.routeName,
-			assignment.padName
-		)
+		presentation.label.Text = string.format("%sSECURE %s • %s", recommended and "★ " or "", assignment.padName, assignment.routeName)
+		presentation.routeLabel.Text = string.format("%s%s • %s%s", recommended and "★ " or "", assignment.routeName,
+			trait.label, threatened and " • DEFENDER NEAR" or "")
 	end
 end)
 
