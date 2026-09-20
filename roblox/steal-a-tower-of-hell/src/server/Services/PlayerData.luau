@@ -1,6 +1,7 @@
 local DataStoreService = game:GetService("DataStoreService")
-
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 local PlayerData = {}
@@ -27,14 +28,12 @@ end
 
 local function sanitize(raw)
 	local data = cloneDefault()
-	if type(raw) ~= "table" then
-		return data
-	end
-
-	for key, defaultValue in pairs(DEFAULT) do
-		local value = raw[key]
-		if type(value) == type(defaultValue) then
-			data[key] = value
+	if type(raw) == "table" then
+		for key, defaultValue in pairs(DEFAULT) do
+			local value = raw[key]
+			if type(value) == type(defaultValue) then
+				data[key] = value
+			end
 		end
 	end
 
@@ -45,7 +44,6 @@ local function sanitize(raw)
 	data.Steals = math.max(0, math.floor(data.Steals))
 	data.TimesRobbed = math.max(0, math.floor(data.TimesRobbed))
 	data.DataVersion = Config.DATA_VERSION
-
 	return data
 end
 
@@ -53,7 +51,17 @@ local function keyFor(player)
 	return ("player_%d"):format(player.UserId)
 end
 
+local function usePersistentStore()
+	return not RunService:IsStudio() or Config.PERSISTENCE.EnableStudioDataStore == true
+end
+
 function PlayerData.Load(player)
+	if not usePersistentStore() then
+		local data = cloneDefault()
+		cache[player] = data
+		return data
+	end
+
 	local loaded
 	for attempt = 1, Config.PERSISTENCE.MaxRetries do
 		local ok, result = pcall(store.GetAsync, store, keyFor(player))
@@ -86,7 +94,7 @@ end
 
 function PlayerData.Save(player)
 	local data = cache[player]
-	if not data then
+	if not data or not usePersistentStore() then
 		return true
 	end
 

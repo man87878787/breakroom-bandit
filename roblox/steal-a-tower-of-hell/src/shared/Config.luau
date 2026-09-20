@@ -1,37 +1,47 @@
 local Config = {}
 
-Config.GAME_VERSION = 1
+Config.GAME_VERSION = 2
 Config.DATA_VERSION = 1
 
 Config.PLAYER = {
 	StartingCoins = 250,
 	StartingTowerLevel = 1,
-	MaxTowerLevel = 50,
+	MaxTowerLevel = 9,
 	BaseWalkSpeed = 16,
 	BaseJumpPower = 50,
 }
 
+Config.WORLD = {
+	HubSize = Vector3.new(82, 2, 82),
+	BridgeWidth = 12,
+	BridgeThickness = 2,
+	VoidFloorSize = Vector3.new(360, 2, 360),
+	VoidFloorY = -18,
+}
+
 Config.TOWERS = {
 	PlotCount = 6,
-	PlotRadius = 145,
-	PlotSize = Vector3.new(42, 1, 42),
+	PlotRadius = 128,
+	PlotSize = Vector3.new(44, 2, 44),
 	SpawnHeight = 4,
-	FloorHeight = 18,
-	BaseFloorCount = 5,
+	FloorHeight = 12,
+	BaseFloorCount = 4,
 	FloorsPerUpgrade = 1,
-	MaxFloors = 24,
+	MaxFloors = 12,
+	StepsPerFloor = 5,
 	ClaimProtectionSeconds = 20,
 }
 
 Config.STEAL = {
-	InteractDistance = 12,
-	HoldDuration = 1.25,
+	InteractDistance = 11,
+	HoldDuration = 1.1,
 	CarryWalkSpeed = 13,
-	EscapeRadius = 26,
+	EscapeRadius = 22,
 	BaseReward = 175,
 	LevelReward = 35,
 	VictimProtectionSeconds = 25,
 	AttackerCooldownSeconds = 12,
+	DeathCooldownSeconds = 5,
 	MaxLevelDifference = 12,
 }
 
@@ -51,11 +61,11 @@ Config.PERSISTENCE = {
 	SaveIntervalSeconds = 60,
 	MaxRetries = 4,
 	RetryDelaySeconds = 1.5,
+	EnableStudioDataStore = false,
 }
 
 Config.REMOTES = {
 	RequestTowerUpgrade = "RequestTowerUpgrade",
-	RequestSteal = "RequestSteal",
 	RequestBankSteal = "RequestBankSteal",
 	StateChanged = "StateChanged",
 	Toast = "Toast",
