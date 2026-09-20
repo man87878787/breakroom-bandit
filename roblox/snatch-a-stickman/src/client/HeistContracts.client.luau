@@ -12,7 +12,7 @@ local card = Instance.new("Frame")
 card.Name = "Card"
 card.AnchorPoint = Vector2.new(0.5, 0)
 card.Position = UDim2.new(0.5, 0, 0, 78)
-card.Size = UDim2.fromOffset(350, 104)
+card.Size = UDim2.fromOffset(350, 124)
 card.BackgroundColor3 = Color3.fromRGB(18, 21, 29)
 card.BackgroundTransparency = 0.06
 card.Parent = gui
@@ -48,8 +48,16 @@ bonus.Font = Enum.Font.GothamMedium
 bonus.TextSize = 11
 bonus.Parent = card
 
+local route = title:Clone()
+route.Position = UDim2.fromOffset(14, 73)
+route.Size = UDim2.new(1, -28, 0, 18)
+route.Font = Enum.Font.GothamBold
+route.TextSize = 10
+route.TextColor3 = Color3.fromRGB(112, 190, 255)
+route.Parent = card
+
 local barBack = Instance.new("Frame")
-barBack.Position = UDim2.fromOffset(14, 77)
+barBack.Position = UDim2.fromOffset(14, 97)
 barBack.Size = UDim2.new(1, -28, 0, 8)
 barBack.BackgroundColor3 = Color3.fromRGB(52, 58, 70)
 barBack.Parent = card
@@ -61,7 +69,7 @@ bar.Parent = barBack
 Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
 
 local footer = title:Clone()
-footer.Position = UDim2.fromOffset(14, 88)
+footer.Position = UDim2.fromOffset(14, 108)
 footer.Size = UDim2.new(1, -28, 0, 13)
 footer.Font = Enum.Font.GothamMedium
 footer.TextSize = 9
@@ -93,7 +101,12 @@ local function refresh()
 		bonus.TextColor3 = Color3.fromRGB(174, 182, 201)
 	end
 
-	footer.Text = "Contracts scale forever • successful snatches advance the next tier"
+	local routeName = tostring(player:GetAttribute("RouteContractRoute") or "FAST")
+	local routeProgress = tonumber(player:GetAttribute("RouteContractProgress")) or 0
+	local routeTarget = tonumber(player:GetAttribute("RouteContractTarget")) or 1
+	local routeReward = tonumber(player:GetAttribute("RouteContractReward")) or 135
+	route.Text = string.format("ROUTE CONTRACT: %s %d/%d - +$%d", routeName, routeProgress, routeTarget, routeReward)
+	footer.Text = "Balance Fast + Sky mastery for repeatable route contracts"
 	TweenService:Create(bar, TweenInfo.new(0.2), {Size = UDim2.fromScale(current / needed, 1)}):Play()
 
 	local pulse = tonumber(player:GetAttribute("HeistContractPulse")) or 0
@@ -117,6 +130,11 @@ for _, name in ipairs({
 	"HeistContractStreak",
 	"HeistContractBonusReward",
 	"HeistContractPulse",
+	"RouteContractRoute",
+	"RouteContractProgress",
+	"RouteContractTarget",
+	"RouteContractReward",
+	"RouteContractPulse",
 }) do
 	player:GetAttributeChangedSignal(name):Connect(refresh)
 end
@@ -126,13 +144,13 @@ local function adapt()
 	if not camera then return end
 	if camera.ViewportSize.X < 760 then
 		card.Position = UDim2.new(0.5, 0, 0, 56)
-		card.Size = UDim2.new(0.86, 0, 0, 96)
+		card.Size = UDim2.new(0.86, 0, 0, 116)
 		title.TextSize = 12
 		detail.TextSize = 10
 		bonus.TextSize = 9
 	else
 		card.Position = UDim2.new(0.5, 0, 0, 78)
-		card.Size = UDim2.fromOffset(350, 104)
+		card.Size = UDim2.fromOffset(350, 124)
 		title.TextSize = 15
 		detail.TextSize = 12
 		bonus.TextSize = 11

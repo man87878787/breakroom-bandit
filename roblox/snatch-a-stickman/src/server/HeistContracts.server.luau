@@ -31,6 +31,22 @@ end
 local function contractName(completed)
 	return NAMES[math.min(#NAMES, completed + 1)]
 end
+local function routeRewardFor(versatility)
+	return math.min(650, 110 + math.max(0, versatility) * 25)
+end
+
+local function publishRoute(player, fast, sky)
+	local versatility = math.min(fast, sky)
+	local route = fast <= sky and "FAST" or "SKY"
+	local progress = route == "FAST" and fast or sky
+	local target = progress + 1
+	player:SetAttribute("RouteContractRoute", route)
+	player:SetAttribute("RouteContractProgress", progress)
+	player:SetAttribute("RouteContractTarget", target)
+	player:SetAttribute("RouteContractVersatility", versatility)
+	player:SetAttribute("RouteContractReward", routeRewardFor(versatility + 1))
+end
+
 local function publish(player, total)
 	local completed = math.floor(math.max(0, total) / STEP)
 	local start = completed * STEP
@@ -67,9 +83,15 @@ local function start(player)
 	local total = profile and profile:FindFirstChild("TotalSnatches")
 	local coins = stats and stats:FindFirstChild("Coins")
 	if not profile or not total or not coins then return end
-	local session = {last = total.Value}
+	local fastRoutes = profile:FindFirstChild("FastRouteEscapes")
+	local skyRoutes = profile:FindFirstChild("SkyRouteEscapes")
+	local session = {
+		last = total.Value,
+		versatility = math.min(fastRoutes and fastRoutes.Value or 0, skyRoutes and skyRoutes.Value or 0),
+	}
 	sessions[player] = session
 	publish(player, total.Value)
+	publishRoute(player, fastRoutes and fastRoutes.Value or 0, skyRoutes and skyRoutes.Value or 0)
 
 	total.Changed:Connect(function()
 		if sessions[player] ~= session then return end
@@ -108,6 +130,26 @@ local function start(player)
 			publish(player, total.Value)
 		end
 	end)
+
+	local function refreshRouteContract()
+		if sessions[player] ~= session then return end
+		local fast = fastRoutes and fastRoutes.Value or 0
+		local sky = skyRoutes and skyRoutes.Value or 0
+		local versatility = math.min(fast, sky)
+		if versatility > session.versatility then
+			for completed = session.versatility + 1, versatility do
+				local payout = routeRewardFor(completed)
+				award(player, profile, coins, payout)
+				player:SetAttribute("RouteContractPulse", (player:GetAttribute("RouteContractPulse") or 0) + 1)
+				player:SetAttribute("RouteContractLastPayout", payout)
+				toastRemote:FireClient(player, string.format("ROUTE CONTRACT COMPLETE! +$%d - both lanes mastered %dx", payout, completed))
+			end
+			session.versatility = versatility
+		end
+		publishRoute(player, fast, sky)
+	end
+	if fastRoutes then fastRoutes.Changed:Connect(refreshRouteContract) end
+	if skyRoutes then skyRoutes.Changed:Connect(refreshRouteContract) end
 end
 Players.PlayerAdded:Connect(function(player)
 	task.spawn(start, player)
