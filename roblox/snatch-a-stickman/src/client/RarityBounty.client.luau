@@ -1,5 +1,4 @@
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
@@ -91,12 +90,10 @@ for _, name in ipairs({
 	player:GetAttributeChangedSignal(name):Connect(refresh)
 end
 
-local elapsed = 0
-RunService.Heartbeat:Connect(function(dt)
-	elapsed += dt
-	if elapsed >= 0.25 then
-		elapsed = 0
+task.spawn(function()
+	while gui.Parent do
 		refresh()
+		task.wait(0.25)
 	end
 end)
 

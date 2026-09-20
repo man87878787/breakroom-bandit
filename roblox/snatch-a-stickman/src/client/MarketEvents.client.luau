@@ -1,7 +1,5 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local world = workspace:WaitForChild("SnatchTheStickmanWorld")
@@ -94,12 +92,10 @@ for _, name in ipairs({
 	world:GetAttributeChangedSignal(name):Connect(refresh)
 end
 
-local accumulator = 0
-RunService.Heartbeat:Connect(function(dt)
-	accumulator += dt
-	if accumulator >= 0.25 then
-		accumulator = 0
+task.spawn(function()
+	while gui.Parent do
 		refresh()
+		task.wait(0.25)
 	end
 end)
 

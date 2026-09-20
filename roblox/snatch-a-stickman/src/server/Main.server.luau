@@ -651,7 +651,7 @@ local function createStickman(rarity)
 
 	local root = Instance.new("Part")
 	root.Name = "Root"
-	root.Size = Vector3.new(1.2, 2.8, 0.8)
+	root.Size = Vector3.new(0.9, 2.7, 0.65)
 	root.Anchored = true
 	root.CanCollide = false
 	root.Color = rarity.Color
@@ -673,26 +673,41 @@ local function createStickman(rarity)
 	local head = Instance.new("Part")
 	head.Name = "Head"
 	head.Shape = Enum.PartType.Ball
-	head.Size = Vector3.new(1.5, 1.5, 1.5)
+	head.Size = Vector3.new(1.38, 1.38, 1.38)
 	head.Anchored = true
 	head.CanCollide = false
 	head.Color = rarity.Color
 	head.Parent = model
 
+	local torsoBand = Instance.new("Part")
+	torsoBand.Name = "TorsoBand"
+	torsoBand.Size = Vector3.new(1.0, 0.16, 0.72)
+	torsoBand.Anchored = true
+	torsoBand.CanCollide = false
+	torsoBand.CanTouch = false
+	torsoBand.CanQuery = false
+	torsoBand.Color = rarity.Color:Lerp(Color3.new(1, 1, 1), 0.28)
+	torsoBand.Material = (rarity.Rank or 1) >= 3 and Enum.Material.Neon or Enum.Material.SmoothPlastic
+	torsoBand.Parent = model
+
 	local limbSpecs = {
-		{"LeftArm", Vector3.new(0.35, 2.2, 0.35)},
-		{"RightArm", Vector3.new(0.35, 2.2, 0.35)},
-		{"LeftLeg", Vector3.new(0.4, 2.4, 0.4)},
-		{"RightLeg", Vector3.new(0.4, 2.4, 0.4)},
+		{"LeftArm", Vector3.new(2.15, 0.32, 0.32)},
+		{"RightArm", Vector3.new(2.15, 0.32, 0.32)},
+		{"LeftLeg", Vector3.new(2.35, 0.38, 0.38)},
+		{"RightLeg", Vector3.new(2.35, 0.38, 0.38)},
 	}
 
 	for _, spec in ipairs(limbSpecs) do
 		local limb = Instance.new("Part")
 		limb.Name = spec[1]
 		limb.Size = spec[2]
+		limb.Shape = Enum.PartType.Cylinder
 		limb.Anchored = true
 		limb.CanCollide = false
+		limb.CanTouch = false
+		limb.CanQuery = false
 		limb.Color = rarity.Color
+		limb.Material = Enum.Material.SmoothPlastic
 		limb.Parent = model
 	end
 
@@ -700,7 +715,8 @@ local function createStickman(rarity)
 	billboard.Name = "Info"
 	billboard.Size = UDim2.fromOffset(150, 56)
 	billboard.StudsOffset = Vector3.new(0, 3.6, 0)
-	billboard.AlwaysOnTop = true
+	billboard.AlwaysOnTop = false
+	billboard.MaxDistance = 46
 	billboard.Parent = root
 
 	local text = Instance.new("TextLabel")
@@ -730,17 +746,18 @@ local function createStickman(rarity)
 
 	local function moveTo(cframe)
 		root.CFrame = cframe
-		head.CFrame = cframe * CFrame.new(0, 2.15, 0)
+		head.CFrame = cframe * CFrame.new(0, 2.12, 0)
+		torsoBand.CFrame = cframe * CFrame.new(0, 0.55, -0.02)
 
 		local leftArm = model:FindFirstChild("LeftArm")
 		local rightArm = model:FindFirstChild("RightArm")
 		local leftLeg = model:FindFirstChild("LeftLeg")
 		local rightLeg = model:FindFirstChild("RightLeg")
 
-		if leftArm then leftArm.CFrame = cframe * CFrame.new(-0.9, 0.1, 0) * CFrame.Angles(0, 0, math.rad(-18)) end
-		if rightArm then rightArm.CFrame = cframe * CFrame.new(0.9, 0.1, 0) * CFrame.Angles(0, 0, math.rad(18)) end
-		if leftLeg then leftLeg.CFrame = cframe * CFrame.new(-0.4, -2.5, 0) end
-		if rightLeg then rightLeg.CFrame = cframe * CFrame.new(0.4, -2.5, 0) end
+		if leftArm then leftArm.CFrame = cframe * CFrame.new(-0.82, 0.08, 0) * CFrame.Angles(0, 0, math.rad(108)) end
+		if rightArm then rightArm.CFrame = cframe * CFrame.new(0.82, 0.08, 0) * CFrame.Angles(0, 0, math.rad(72)) end
+		if leftLeg then leftLeg.CFrame = cframe * CFrame.new(-0.34, -2.45, 0) * CFrame.Angles(0, 0, math.rad(90)) end
+		if rightLeg then rightLeg.CFrame = cframe * CFrame.new(0.34, -2.45, 0) * CFrame.Angles(0, 0, math.rad(90)) end
 	end
 
 	prompt.Triggered:Connect(function(player)
@@ -1223,7 +1240,7 @@ Players.PlayerAdded:Connect(function(player)
 	player:SetAttribute("DataReady", false)
 	local plotIndex = assignPlot(player)
 	if not plotIndex then
-		player:Kick("This prototype currently supports 6 players per server.")
+		player:Kick("This server is full. Snatch the Stickman supports up to 6 players per server.")
 		return
 	end
 

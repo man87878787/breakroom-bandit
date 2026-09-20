@@ -81,6 +81,50 @@ WorldConfig.TRANSIT_STOPS = {
 	},
 }
 
+
+WorldConfig.PROGRESSION_ISLANDS = {
+	{
+		Id = "HarborCove",
+		Name = "Harbor Cove",
+		Subtitle = "Starter travel • easy contracts • calm routes",
+		Center = Vector3.new(-190, 0, 180),
+		Radius = 43,
+		RequiredUpgradeScore = 0,
+		TravelCost = 60,
+		TravelMode = "Ferry",
+		Accent = Color3.fromRGB(67, 205, 180),
+	},
+	{
+		Id = "GearworksIsle",
+		Name = "Gearworks Isle",
+		Subtitle = "Mid-game upgrades • freight tech • tougher jobs",
+		Center = Vector3.new(0, 0, 255),
+		Radius = 45,
+		RequiredUpgradeScore = 3,
+		TravelCost = 180,
+		TravelMode = "Cargo Shuttle",
+		Accent = Color3.fromRGB(255, 166, 72),
+	},
+	{
+		Id = "Skyreach",
+		Name = "Skyreach",
+		Subtitle = "Late-game mastery • rare contracts • prestige routes",
+		Center = Vector3.new(190, 0, 180),
+		Radius = 43,
+		RequiredUpgradeScore = 6,
+		TravelCost = 400,
+		TravelMode = "Air Taxi",
+		Accent = Color3.fromRGB(177, 102, 255),
+	},
+}
+
+WorldConfig.ISLAND_TRAVEL = {
+	HubPosition = Vector3.new(0, 0, 108),
+	ReturnPosition = Vector3.new(0, 4, 103),
+	CooldownSeconds = 2.5,
+	MaxPromptDistance = 12,
+}
+
 WorldConfig.ACTIVITY_SETTINGS = {
 	InitialDelay = 24,
 	Interval = 36,

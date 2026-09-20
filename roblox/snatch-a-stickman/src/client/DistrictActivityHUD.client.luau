@@ -2,7 +2,6 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local WorldConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WorldConfig"))
 local player = Players.LocalPlayer
@@ -111,12 +110,7 @@ local function resize()
 	end
 end
 
-local accumulator = 0
-RunService.Heartbeat:Connect(function(dt)
-	accumulator += dt
-	if accumulator < 0.12 then return end
-	accumulator = 0
-
+local function refreshActivity()
 	local active = world:GetAttribute("DistrictActivityId")
 	if not active or active == "" then
 		card.Visible = false
@@ -146,8 +140,33 @@ RunService.Heartbeat:Connect(function(dt)
 		status.Text = string.format("%ds", math.ceil(math.max(0, goal - progress)))
 	end
 	bar.Size = UDim2.fromScale(goal > 0 and math.clamp(progress / goal, 0, 1) or 0, 1)
+end
+
+for _, attribute in ipairs({
+	"DistrictActivityId",
+	"DistrictActivityName",
+	"DistrictActivityDistrict",
+	"DistrictActivityEndsAt",
+	"DistrictActivityReward",
+}) do
+	world:GetAttributeChangedSignal(attribute):Connect(refreshActivity)
+end
+for _, attribute in ipairs({
+	"DistrictActivityGoal",
+	"DistrictActivityProgress",
+	"DistrictActivityCompleted",
+}) do
+	player:GetAttributeChangedSignal(attribute):Connect(refreshActivity)
+end
+
+task.spawn(function()
+	while gui.Parent do
+		if card.Visible then refreshActivity() end
+		task.wait(card.Visible and 0.2 or 0.5)
+	end
 end)
 
 local camera = workspace.CurrentCamera
 if camera then camera:GetPropertyChangedSignal("ViewportSize"):Connect(resize) end
 resize()
+refreshActivity()

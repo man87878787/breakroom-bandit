@@ -3,7 +3,6 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local WorldConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WorldConfig"))
@@ -108,37 +107,33 @@ end
 local function nearestDistrict(position)
 	local best = nil
 	local bestDistance = math.huge
-	for _, district in ipairs(WorldConfig.DISTRICTS) do
-		local delta = Vector2.new(position.X - district.Center.X, position.Z - district.Center.Z)
-		local distance = delta.Magnitude
-		if distance <= district.Radius and distance < bestDistance then
-			best = district
-			bestDistance = distance
+	for _, regions in ipairs({WorldConfig.DISTRICTS, WorldConfig.PROGRESSION_ISLANDS}) do
+		for _, district in ipairs(regions) do
+			local delta = Vector2.new(position.X - district.Center.X, position.Z - district.Center.Z)
+			local distance = delta.Magnitude
+			if distance <= district.Radius and distance < bestDistance then
+				best = district
+				bestDistance = distance
+			end
 		end
 	end
 	return best
 end
 
-local accumulator = 0
-RunService.Heartbeat:Connect(function(dt)
-	accumulator += dt
-	if accumulator < 0.4 then
-		return
-	end
-	accumulator = 0
-
-	local position = rootPosition()
-	if not position then
-		return
-	end
-
-	local district = nearestDistrict(position)
-	local id = district and district.Id or nil
-	if id ~= currentDistrict then
-		currentDistrict = id
-		if district then
-			showBanner(district.Name, district.Subtitle, district.Accent)
+task.spawn(function()
+	while gui.Parent do
+		local position = rootPosition()
+		if position then
+			local district = nearestDistrict(position)
+			local id = district and district.Id or nil
+			if id ~= currentDistrict then
+				currentDistrict = id
+				if district then
+					showBanner(district.Name, district.Subtitle, district.Accent)
+				end
+			end
 		end
+		task.wait(0.35)
 	end
 end)
 
@@ -153,6 +148,22 @@ player:GetAttributeChangedSignal("TransitArrival"):Connect(function()
 				return
 			end
 		end
+	end
+end)
+
+local lastIslandArrival = player:GetAttribute("IslandTravelArrival")
+player:GetAttributeChangedSignal("IslandTravelArrival"):Connect(function()
+	local arrival = player:GetAttribute("IslandTravelArrival")
+	if not arrival or arrival == "" or arrival == lastIslandArrival then return end
+	lastIslandArrival = arrival
+	for _, island in ipairs(WorldConfig.PROGRESSION_ISLANDS) do
+		if island.Name == arrival then
+			showBanner(island.Name, island.Subtitle, island.Accent)
+			return
+		end
+	end
+	if arrival == "Stickman City" then
+		showBanner("Stickman City", "Returned to the main city", Color3.fromRGB(114, 205, 255))
 	end
 end)
 

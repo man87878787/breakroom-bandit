@@ -21,7 +21,9 @@ activityRoot.Parent = connectedMap
 local sessions = {}
 local completedUsers = {}
 local markers = {}
-local activityIndex = 0
+local activityBag = {}
+local lastActivityId = nil
+local rng = Random.new()
 local cycleId = 0
 local activeActivity = nil
 local activeUntil = 0
@@ -151,9 +153,26 @@ local function refreshMarkers()
 	end
 end
 
+local function refillActivityBag()
+	activityBag = table.clone(WorldConfig.ACTIVITIES)
+	for index = #activityBag, 2, -1 do
+		local swapIndex = rng:NextInteger(1, index)
+		activityBag[index], activityBag[swapIndex] = activityBag[swapIndex], activityBag[index]
+	end
+	if #activityBag > 1 and lastActivityId and activityBag[#activityBag].Id == lastActivityId then
+		activityBag[1], activityBag[#activityBag] = activityBag[#activityBag], activityBag[1]
+	end
+end
+
+local function nextActivity()
+	if #activityBag == 0 then refillActivityBag() end
+	local activity = table.remove(activityBag)
+	lastActivityId = activity.Id
+	return activity
+end
+
 local function beginActivity()
-	activityIndex = (activityIndex % #WorldConfig.ACTIVITIES) + 1
-	activeActivity = WorldConfig.ACTIVITIES[activityIndex]
+	activeActivity = nextActivity()
 	cycleId += 1
 	completedUsers = {}
 	activeUntil = workspace:GetServerTimeNow() + activeActivity.Duration

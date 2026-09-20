@@ -2,7 +2,6 @@
 -- Presentation only: competitive authority remains on the server.
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 
 local localPlayer = Players.LocalPlayer
 local world = workspace:WaitForChild("SnatchTheStickmanWorld")
@@ -151,10 +150,9 @@ local function refresh()
 	lastRole = role
 end
 
-local elapsed = 0
-RunService.Heartbeat:Connect(function(dt)
-	elapsed += dt
-	if elapsed < 0.12 then return end
-	elapsed = 0
-	refresh()
+task.spawn(function()
+	while neighborhoods.Parent do
+		refresh()
+		task.wait(activeCarry and 0.1 or 0.2)
+	end
 end)

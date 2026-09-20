@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
@@ -402,14 +401,9 @@ if camera then
 	camera:GetPropertyChangedSignal("ViewportSize"):Connect(adaptToViewport)
 end
 
-local accumulator = 0
-RunService.Heartbeat:Connect(function(dt)
-	accumulator += dt
-	if accumulator < 0.1 then
-		return
-	end
-	accumulator = 0
-	refreshShield()
+task.spawn(function()
+	while gui.Parent do
+		refreshShield()
 
 	if carryActive then
 		local plotIndex = player:GetAttribute("PlotIndex")
@@ -444,16 +438,19 @@ RunService.Heartbeat:Connect(function(dt)
 		end
 	end
 
-	if threatActive then
-		local now = workspace:GetServerTimeNow()
-		local expiresAt = player:GetAttribute("ThreatExpiresServerTime") or 0
-		local secondsLeft = math.max(0, math.ceil(expiresAt - now))
-		local rarity = string.upper(tostring(player:GetAttribute("ThreatRarity") or "STICKMAN"))
-		local carrierName = tostring(player:GetAttribute("ThreatCarrierName") or "")
-		if carrierName ~= "" and expiresAt > 0 then
-			threatBanner.Text = string.format("%s IS SNATCHING YOUR %s!  •  %ds TO RECOVER", string.upper(carrierName), rarity, secondsLeft)
-		elseif threatMessage ~= "" then
-			threatBanner.Text = threatMessage
+		if threatActive then
+			local now = workspace:GetServerTimeNow()
+			local expiresAt = player:GetAttribute("ThreatExpiresServerTime") or 0
+			local secondsLeft = math.max(0, math.ceil(expiresAt - now))
+			local rarity = string.upper(tostring(player:GetAttribute("ThreatRarity") or "STICKMAN"))
+			local carrierName = tostring(player:GetAttribute("ThreatCarrierName") or "")
+			if carrierName ~= "" and expiresAt > 0 then
+				threatBanner.Text = string.format("%s IS SNATCHING YOUR %s!  •  %ds TO RECOVER", string.upper(carrierName), rarity, secondsLeft)
+			elseif threatMessage ~= "" then
+				threatBanner.Text = threatMessage
+			end
 		end
+
+		task.wait(0.1)
 	end
 end)

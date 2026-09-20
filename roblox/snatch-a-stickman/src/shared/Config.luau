@@ -58,6 +58,21 @@ Config.TRANSIT_COOLDOWN_SECONDS = 3.5
 Config.TRANSIT_MAX_TRIGGER_DISTANCE = 14
 Config.TRANSIT_EXIT_HEIGHT = 4
 
+-- Local movement presentation. Visual only; gameplay movement remains server-authoritative.
+Config.MOVEMENT_PRESENTATION = {
+	Enabled = true,
+	ForwardLeanDegrees = 5.5,
+	SideLeanDegrees = 4.25,
+	AirTiltDegrees = 2.5,
+	BobHeight = 0.04,
+	BobFrequency = 9.5,
+	LandingDip = 0.05,
+	LandingRecovery = 0.45,
+	Response = 14,
+	MinSpeed = 1.25,
+	TouchScale = 0.72,
+}
+
 -- Session missions
 Config.MISSIONS = {
 	Recruit = {Goal = 3, Reward = 150, Label = "Recruit 3 stickmen"},
