@@ -1112,31 +1112,52 @@ Players.PlayerAdded:Connect(function(player)
 		return
 	end
 
-	local leaderstats = Instance.new("Folder")
-	leaderstats.Name = "leaderstats"
-	leaderstats.Parent = player
+	local leaderstats = player:FindFirstChild("leaderstats")
+	if not leaderstats or not leaderstats:IsA("Folder") then
+		if leaderstats then leaderstats:Destroy() end
+		leaderstats = Instance.new("Folder")
+		leaderstats.Name = "leaderstats"
+		leaderstats.Parent = player
+	end
 
-	local coins = Instance.new("IntValue")
-	coins.Name = "Coins"
-	coins.Value = Config.STARTING_COINS
-	coins.Parent = leaderstats
+	local coins = leaderstats:FindFirstChild("Coins")
+	if not coins or not coins:IsA("IntValue") then
+		if coins then coins:Destroy() end
+		coins = Instance.new("IntValue")
+		coins.Name = "Coins"
+		coins.Value = Config.STARTING_COINS
+		coins.Parent = leaderstats
+	end
 
-	local profile = Instance.new("Folder")
-	profile.Name = "Profile"
-	profile.Parent = player
+	local profile = player:FindFirstChild("Profile")
+	if not profile or not profile:IsA("Folder") then
+		if profile then profile:Destroy() end
+		profile = Instance.new("Folder")
+		profile.Name = "Profile"
+		profile.Parent = player
+	end
 
 	local function intValue(name, value)
-		local item = Instance.new("IntValue")
+		local item = profile:FindFirstChild(name)
+		if item and item:IsA("IntValue") then
+			return item
+		end
+		if item then item:Destroy() end
+		item = Instance.new("IntValue")
 		item.Name = name
 		item.Value = value or 0
 		item.Parent = profile
 		return item
 	end
 
-	local collectionData = Instance.new("StringValue")
-	collectionData.Name = "CollectionData"
-	collectionData.Value = "[]"
-	collectionData.Parent = profile
+	local collectionData = profile:FindFirstChild("CollectionData")
+	if not collectionData or not collectionData:IsA("StringValue") then
+		if collectionData then collectionData:Destroy() end
+		collectionData = Instance.new("StringValue")
+		collectionData.Name = "CollectionData"
+		collectionData.Value = "[]"
+		collectionData.Parent = profile
+	end
 
 	intValue("IncomeLevel", 0)
 	intValue("CapacityLevel", 0)
