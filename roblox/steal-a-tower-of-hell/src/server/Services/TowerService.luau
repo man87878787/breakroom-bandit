@@ -66,6 +66,12 @@ local function connectHazard(part)
 			return
 		end
 
+		local player = Players:GetPlayerFromCharacter(character)
+		local immuneUntil = player and tonumber(player:GetAttribute("HazardImmuneUntil")) or 0
+		if immuneUntil > workspace:GetServerTimeNow() then
+			return
+		end
+
 		hazardDebounce[humanoid] = true
 		humanoid.Health = 0
 		task.delay(1, function()
@@ -441,16 +447,16 @@ function TowerService.Initialize(world)
 		)
 		trim.CanTouch = false
 
-		local spawn = Instance.new("SpawnLocation")
-		spawn.Name = "OwnerSpawn"
-		spawn.Size = Vector3.new(7, 1, 7)
-		spawn.CFrame = base.CFrame * CFrame.new(0, Config.TOWERS.SpawnHeight, -14)
-		spawn.Anchored = true
-		spawn.Neutral = true
-		spawn.Enabled = false
-		spawn.Transparency = 0.3
-		spawn.Color = Color3.fromRGB(82, 232, 150)
-		spawn.Parent = model
+		local spawn = newPart(
+			model,
+			"OwnerSpawn",
+			Vector3.new(8, 1, 8),
+			base.CFrame * CFrame.new(0, Config.TOWERS.SpawnHeight, -14),
+			Color3.fromRGB(82, 232, 150),
+			Enum.Material.Neon
+		)
+		spawn.Transparency = 0.25
+		spawn:SetAttribute("SafeSpawn", true)
 
 		createOwnerBillboard(model)
 		createBaseInteractions(model)

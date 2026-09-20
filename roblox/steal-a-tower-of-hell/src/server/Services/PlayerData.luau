@@ -5,8 +5,15 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 local PlayerData = {}
-local store = DataStoreService:GetDataStore(Config.PERSISTENCE.StoreName)
+local store
 local cache = {}
+
+local function getStore()
+	if not store then
+		store = game:GetService("DataStoreService"):GetDataStore(Config.PERSISTENCE.StoreName)
+	end
+	return store
+end
 
 local DEFAULT = {
 	DataVersion = Config.DATA_VERSION,
@@ -62,9 +69,10 @@ function PlayerData.Load(player)
 		return data
 	end
 
+	local dataStore = getStore()
 	local loaded
 	for attempt = 1, Config.PERSISTENCE.MaxRetries do
-		local ok, result = pcall(store.GetAsync, store, keyFor(player))
+		local ok, result = pcall(dataStore.GetAsync, dataStore, keyFor(player))
 		if ok then
 			loaded = result
 			break
@@ -98,9 +106,10 @@ function PlayerData.Save(player)
 		return true
 	end
 
+	local dataStore = getStore()
 	local snapshot = sanitize(data)
 	for attempt = 1, Config.PERSISTENCE.MaxRetries do
-		local ok = pcall(store.UpdateAsync, store, keyFor(player), function()
+		local ok = pcall(dataStore.UpdateAsync, dataStore, keyFor(player), function()
 			return snapshot
 		end)
 		if ok then

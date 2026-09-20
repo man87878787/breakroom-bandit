@@ -41,6 +41,38 @@ local function toast(player, text)
 	end
 end
 
+local function grantSpawnGrace(player, character)
+	player:SetAttribute("HazardImmuneUntil", workspace:GetServerTimeNow() + 4)
+
+	local forceField = Instance.new("ForceField")
+	forceField.Name = "SpawnGrace"
+	forceField.Visible = false
+	forceField.Parent = character
+
+	task.delay(4, function()
+		if forceField.Parent then
+			forceField:Destroy()
+		end
+	end)
+end
+
+local function moveToOwnedSpawn(player, character)
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return false
+	end
+
+	local plot = TowerService.GetForPlayer(player)
+	local spawn = plot and plot:FindFirstChild("OwnerSpawn")
+	if not spawn then
+		return false
+	end
+
+	grantSpawnGrace(player, character)
+	character:PivotTo(spawn.CFrame * CFrame.new(0, 4, 0))
+	return true
+end
+
 local function applyPlayerState(player, data)
 	player:SetAttribute("Coins", data.Coins)
 	player:SetAttribute("TowerLevel", data.TowerLevel)
@@ -126,9 +158,8 @@ local function assignPlot(player)
 		return nil
 	end
 
-	local spawn = plot:FindFirstChild("OwnerSpawn")
-	if spawn and player.Character then
-		player.Character:PivotTo(spawn.CFrame * CFrame.new(0, 3, 0))
+	if player.Character then
+		moveToOwnedSpawn(player, player.Character)
 	end
 
 	StealService.Protect(player, Config.TOWERS.ClaimProtectionSeconds)
@@ -144,12 +175,13 @@ local function setupCharacter(player, character)
 
 	humanoid.WalkSpeed = Config.PLAYER.BaseWalkSpeed
 	humanoid.JumpPower = Config.PLAYER.BaseJumpPower
+	grantSpawnGrace(player, character)
 
-	local plot = TowerService.GetForPlayer(player)
-	local spawn = plot and plot:FindFirstChild("OwnerSpawn")
-	if spawn then
-		character:PivotTo(spawn.CFrame * CFrame.new(0, 3, 0))
-	end
+	task.defer(function()
+		if character.Parent then
+			moveToOwnedSpawn(player, character)
+		end
+	end)
 
 	humanoid.Died:Connect(function()
 		if StealService.CancelCarry(player, true) then
@@ -266,6 +298,13 @@ remoteObjects.RequestBankSteal.OnServerEvent:Connect(function(player)
 end)
 
 local function onPlayerAdded(player)
+	local hubSpawn = world:FindFirstChild("HubSpawn")
+	if hubSpawn and hubSpawn:IsA("SpawnLocation") then
+		player.RespawnLocation = hubSpawn
+	end
+
+	player:SetAttribute("HazardImmuneUntil", workspace:GetServerTimeNow() + 4)
+
 	local data = PlayerData.Load(player)
 	applyPlayerState(player, data)
 
