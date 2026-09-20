@@ -8,6 +8,7 @@ local plots = {}
 local playerPlots = {}
 local interactionHandlers = {}
 local hazardDebounce = {}
+local portalDebounce = {}
 
 local PALETTE = {
 	Color3.fromRGB(100, 92, 255),
@@ -289,12 +290,148 @@ local function createBaseInteractions(plot)
 	local basePos = plot.PrimaryPart.Position
 	local plotIndex = tonumber(plot:GetAttribute("PlotIndex")) or 1
 	local accent = PALETTE[((plotIndex - 1) % #PALETTE) + 1]
+	local towardHub = Vector3.new(-basePos.X, 0, -basePos.Z).Unit
+	local facing = CFrame.lookAt(basePos, basePos + towardHub)
+
+	local baseModel = Instance.new("Model")
+	baseModel.Name = "MiniBase"
+	baseModel.Parent = plot
+
+	local floor = newPart(
+		baseModel,
+		"InteriorFloor",
+		Vector3.new(16, 1, 16),
+		CFrame.new(basePos + Vector3.new(0, 1.6, 0)),
+		Color3.fromRGB(25, 30, 42),
+		Enum.Material.Metal
+	)
+	floor:SetAttribute("SafeInterior", true)
+
+	for tier = 1, 3 do
+		local y = 2.1 + (tier - 1) * 4
+		local size = 18 - (tier - 1)
+		local ring = newPart(
+			baseModel,
+			("Tier_%02d"):format(tier),
+			Vector3.new(size, 0.55, size),
+			CFrame.new(basePos + Vector3.new(0, y, 0)),
+			tier == 3 and accent or Color3.fromRGB(42, 48, 64),
+			tier == 3 and Enum.Material.Neon or Enum.Material.Metal
+		)
+		ring.CanTouch = false
+	end
+
+	for _, localOffset in ipairs({
+		Vector3.new(-7.5, 5.8, -7.5),
+		Vector3.new(7.5, 5.8, -7.5),
+		Vector3.new(-7.5, 5.8, 7.5),
+		Vector3.new(7.5, 5.8, 7.5),
+	}) do
+		local column = newPart(
+			baseModel,
+			"CornerColumn",
+			Vector3.new(2.2, 8, 2.2),
+			facing * CFrame.new(localOffset),
+			accent,
+			Enum.Material.Neon
+		)
+		column.CanTouch = false
+	end
+
+	for _, panelData in ipairs({
+		{ Vector3.new(0, 5.7, -8), Vector3.new(12, 7, 1) },
+		{ Vector3.new(-8, 5.7, 0), Vector3.new(1, 7, 12) },
+		{ Vector3.new(8, 5.7, 0), Vector3.new(1, 7, 12) },
+	}) do
+		local glass = newPart(
+			baseModel,
+			"GlassPanel",
+			panelData[2],
+			facing * CFrame.new(panelData[1]),
+			Color3.fromRGB(95, 110, 145),
+			Enum.Material.Glass
+		)
+		glass.Transparency = 0.45
+		glass.CanTouch = false
+	end
+
+	local roof = newPart(
+		baseModel,
+		"Roof",
+		Vector3.new(16, 1, 16),
+		CFrame.new(basePos + Vector3.new(0, 10.1, 0)),
+		Color3.fromRGB(34, 39, 52),
+		Enum.Material.Metal
+	)
+	roof.CanTouch = false
+
+	local entrancePos = basePos + towardHub * 18 + Vector3.new(0, 1.5, 0)
+	local entrance = newPart(
+		plot,
+		"BasePortal",
+		Vector3.new(10, 0.75, 8),
+		CFrame.lookAt(entrancePos, entrancePos + towardHub),
+		Color3.fromRGB(78, 226, 143),
+		Enum.Material.Neon
+	)
+	entrance:SetAttribute("BaseEntrance", true)
+
+	local portalLight = Instance.new("PointLight")
+	portalLight.Color = entrance.Color
+	portalLight.Brightness = 2
+	portalLight.Range = 14
+	portalLight.Parent = entrance
+
+	local portalGui = Instance.new("BillboardGui")
+	portalGui.Size = UDim2.fromOffset(180, 42)
+	portalGui.StudsOffsetWorldSpace = Vector3.new(0, 3.2, 0)
+	portalGui.AlwaysOnTop = true
+	portalGui.MaxDistance = 100
+	portalGui.Parent = entrance
+
+	local portalLabel = Instance.new("TextLabel")
+	portalLabel.Size = UDim2.fromScale(1, 1)
+	portalLabel.BackgroundColor3 = Color3.fromRGB(12, 20, 18)
+	portalLabel.BackgroundTransparency = 0.18
+	portalLabel.Text = "ENTER BASE"
+	portalLabel.TextColor3 = Color3.fromRGB(130, 255, 184)
+	portalLabel.Font = Enum.Font.GothamBlack
+	portalLabel.TextScaled = true
+	portalLabel.Parent = portalGui
+	local portalCorner = Instance.new("UICorner")
+	portalCorner.CornerRadius = UDim.new(0, 9)
+	portalCorner.Parent = portalLabel
+
+	local interiorSpawn = newPart(
+		baseModel,
+		"InteriorSpawn",
+		Vector3.new(4, 0.2, 4),
+		facing * CFrame.new(0, 2.3, 5),
+		Color3.fromRGB(26, 31, 43),
+		Enum.Material.SmoothPlastic,
+		false
+	)
+	interiorSpawn.Transparency = 1
+	interiorSpawn.CanTouch = false
+	interiorSpawn.CanQuery = false
+
+	local exitPad = newPart(
+		baseModel,
+		"ExitPad",
+		Vector3.new(6, 0.55, 4),
+		facing * CFrame.new(0, 2.25, -5.5),
+		Color3.fromRGB(226, 91, 105),
+		Enum.Material.Neon
+	)
+	exitPad:SetAttribute("BaseExit", true)
+	local exitAction = ("ExitBase_%02d"):format(plotIndex)
+	addPrompt(exitPad, "ExitPrompt", "EXIT BASE", "Outside", exitAction, plot, 0.1)
 
 	local bankPad = newPart(
-		plot,
+		baseModel,
 		"BankPad",
-		Vector3.new(9, 0.6, 9),
-		CFrame.new(basePos + Vector3.new(-12, 1.3, 0)),
+		Vector3.new(5, 0.55, 5),
+		facing * CFrame.new(-5, 2.25, 2),
 		Color3.fromRGB(78, 226, 143),
 		Enum.Material.Neon
 	)
@@ -302,15 +439,49 @@ local function createBaseInteractions(plot)
 	addPrompt(bankPad, "BankPrompt", "BANK CORE", "Your Vault", "Bank", plot, 0.2)
 
 	local upgradePad = newPart(
-		plot,
+		baseModel,
 		"UpgradePad",
-		Vector3.new(9, 0.6, 9),
-		CFrame.new(basePos + Vector3.new(12, 1.3, 0)),
+		Vector3.new(5, 0.55, 5),
+		facing * CFrame.new(5, 2.25, 2),
 		accent,
 		Enum.Material.Neon
 	)
 	upgradePad:SetAttribute("UpgradeZone", true)
 	addPrompt(upgradePad, "UpgradePrompt", "UPGRADE", "Tower Builder", "Upgrade", plot, 0.2)
+
+	local function teleportPlayer(player, targetCFrame)
+		if not player or portalDebounce[player] then
+			return
+		end
+		local character = player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if not character or not humanoid or humanoid.Health <= 0 then
+			return
+		end
+
+		portalDebounce[player] = true
+		player:SetAttribute("HazardImmuneUntil", workspace:GetServerTimeNow() + 1.5)
+		character:PivotTo(targetCFrame * CFrame.new(0, 3.5, 0))
+		task.delay(0.9, function()
+			portalDebounce[player] = nil
+		end)
+	end
+
+	entrance.Touched:Connect(function(hit)
+		local character = hit and hit.Parent
+		local player = character and Players:GetPlayerFromCharacter(character)
+		if not player or tonumber(plot:GetAttribute("OwnerUserId")) ~= player.UserId then
+			return
+		end
+		teleportPlayer(player, interiorSpawn.CFrame)
+	end)
+
+	interactionHandlers[exitAction] = function(player, sourcePlot)
+		if sourcePlot ~= plot or tonumber(plot:GetAttribute("OwnerUserId")) ~= player.UserId then
+			return
+		end
+		teleportPlayer(player, entrance.CFrame * CFrame.new(0, 0, -5))
+	end
 end
 
 local function createBridge(world, index, target)
@@ -447,15 +618,24 @@ function TowerService.Initialize(world)
 		)
 		trim.CanTouch = false
 
+		local towardHub = Vector3.new(-position.X, 0, -position.Z).Unit
+		local side = Vector3.new(-towardHub.Z, 0, towardHub.X)
+		local spawnPosition = position
+			+ towardHub * 20
+			+ side * 7
+			+ Vector3.new(0, Config.TOWERS.SpawnHeight, 0)
 		local spawn = newPart(
 			model,
 			"OwnerSpawn",
-			Vector3.new(8, 1, 8),
-			base.CFrame * CFrame.new(0, Config.TOWERS.SpawnHeight, -14),
+			Vector3.new(4, 0.2, 4),
+			CFrame.new(spawnPosition),
 			Color3.fromRGB(82, 232, 150),
-			Enum.Material.Neon
+			Enum.Material.SmoothPlastic,
+			false
 		)
-		spawn.Transparency = 0.25
+		spawn.Transparency = 1
+		spawn.CanTouch = false
+		spawn.CanQuery = false
 		spawn:SetAttribute("SafeSpawn", true)
 
 		createOwnerBillboard(model)
