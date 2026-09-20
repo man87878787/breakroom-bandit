@@ -131,7 +131,12 @@ local function refresh()
 			elseif role == "Escape" then
 				setMarkerText(data, "ESCAPE: FAST / SKY", COLORS[role])
 			elseif role == "Contested" then
-				setMarkerText(data, "CONTESTED - CUT THEM OFF", COLORS[role])
+				local progress = math.floor(((tonumber(carry:GetAttribute("InterceptProgress")) or 0) * 100) + 0.5)
+				if carrierId == localPlayer.UserId then
+					setMarkerText(data, string.format("PURSUED - BREAK LINE %d%%", progress), COLORS[role])
+				else
+					setMarkerText(data, string.format("INTERCEPT - HOLD PRESSURE %d%%", progress), COLORS[role])
+				end
 			else
 				setMarkerText(data, "DEFEND: INTERCEPT ROUTES", COLORS[role])
 			end

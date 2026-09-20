@@ -162,6 +162,7 @@ local function clearCarryPresentation(player, state, carry)
 		player:SetAttribute("CarryStartedServerTime", nil)
 		player:SetAttribute("CarryExpiresServerTime", nil)
 		player:SetAttribute("CarryContested", nil)
+		player:SetAttribute("CarryInterceptProgress", nil)
 		player:SetAttribute("CarryEscapedVictimZone", nil)
 		player:SetAttribute("CarryBreakawayDeadlineServerTime", nil)
 	end
@@ -170,6 +171,7 @@ local function clearCarryPresentation(player, state, carry)
 	if model and model.Parent then
 		model:SetAttribute("EscapedVictimZone", nil)
 		model:SetAttribute("BreakawayDeadlineServerTime", nil)
+		model:SetAttribute("InterceptProgress", nil)
 	end
 
 	local victim = carry and carry.Victim
@@ -236,6 +238,7 @@ local function startCarryPresentation(player, state, model, rarity, victim)
 	player:SetAttribute("CarryStartedServerTime", workspace:GetServerTimeNow())
 	player:SetAttribute("CarryExpiresServerTime", expiresServerTime)
 	player:SetAttribute("CarryEscapedVictimZone", false)
+	player:SetAttribute("CarryInterceptProgress", 0)
 	player:SetAttribute("CarryBreakawayDeadlineServerTime", workspace:GetServerTimeNow() + Config.BREAKAWAY_SECONDS)
 
 	if victim then
@@ -842,12 +845,14 @@ local function createStickman(rarity)
 			BreakawayDeadline = breakawayDeadline,
 			EscapedVictimZone = false,
 			Contested = false,
+			InterceptProgress = 0,
 		}
 
 		model:SetAttribute("CarrierUserId", player.UserId)
 		model:SetAttribute("PreviousOwnerUserId", ownerUserId)
 		model:SetAttribute("TransferState", "InTransit")
 		model:SetAttribute("Contested", false)
+		model:SetAttribute("InterceptProgress", 0)
 		model:SetAttribute("EscapedVictimZone", false)
 		model:SetAttribute("BreakawayDeadlineServerTime", workspace:GetServerTimeNow() + Config.BREAKAWAY_SECONDS)
 		prompt.ActionText = "Recover"
@@ -1369,18 +1374,36 @@ RunService.Heartbeat:Connect(function(dt)
 				end
 				local victimCharacter = carry.Victim and carry.Victim.Character
 				local victimRoot = victimCharacter and victimCharacter:FindFirstChild("HumanoidRootPart")
-				local contested = victimRoot ~= nil and (victimRoot.Position - root.Position).Magnitude <= Config.CONTESTED_RANGE
+				local defenderDistance = victimRoot and (victimRoot.Position - root.Position).Magnitude or math.huge
+				local contested = defenderDistance <= Config.CONTESTED_RANGE
+				local intercepting = defenderDistance <= Config.INTERCEPT_CAPTURE_RANGE
 				if carry.Contested ~= contested then
 					carry.Contested = contested
 					model:SetAttribute("Contested", contested)
 					player:SetAttribute("CarryContested", contested)
 					if contested then toast(player, "CONTESTED! The owner is close - break away!") end
 				end
-				humanoid.WalkSpeed = contested and Config.CONTESTED_CARRY_WALK_SPEED or Config.CARRY_WALK_SPEED
-				model:PivotTo(root.CFrame * CFrame.new(0, 3.1, 2.5) * CFrame.Angles(0, math.rad(180), 0))
-				local plot = openPlots[state.PlotIndex]
-				local securePad = plot and plot.SecurePad
-				if securePad and (root.Position - securePad.Position).Magnitude <= Config.SECURE_RADIUS then secureCarry(player) end
+
+				-- Sustained defender proximity after breakaway becomes a real interception.
+				if carry.EscapedVictimZone and intercepting then
+					carry.InterceptProgress = math.min(Config.INTERCEPT_CAPTURE_SECONDS, (carry.InterceptProgress or 0) + Config.CARRY_SERVER_UPDATE_RATE)
+				else
+					carry.InterceptProgress = math.max(0, (carry.InterceptProgress or 0) - (Config.CARRY_SERVER_UPDATE_RATE * Config.INTERCEPT_DECAY_PER_SECOND))
+				end
+				local interceptRatio = math.clamp((carry.InterceptProgress or 0) / Config.INTERCEPT_CAPTURE_SECONDS, 0, 1)
+				model:SetAttribute("InterceptProgress", interceptRatio)
+				player:SetAttribute("CarryInterceptProgress", interceptRatio)
+
+				if carry.EscapedVictimZone and carry.InterceptProgress >= Config.INTERCEPT_CAPTURE_SECONDS and carry.Victim then
+					toast(carry.Victim, "INTERCEPT! You stayed on the thief and recovered your stickman.")
+					recoverCarry(carry.Victim, player)
+				else
+					humanoid.WalkSpeed = contested and Config.CONTESTED_CARRY_WALK_SPEED or Config.CARRY_WALK_SPEED
+					model:PivotTo(root.CFrame * CFrame.new(0, 3.1, 2.5) * CFrame.Angles(0, math.rad(180), 0))
+					local plot = openPlots[state.PlotIndex]
+					local securePad = plot and plot.SecurePad
+					if securePad and (root.Position - securePad.Position).Magnitude <= Config.SECURE_RADIUS then secureCarry(player) end
+				end
 			end
 		end
 	end
