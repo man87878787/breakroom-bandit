@@ -48,6 +48,21 @@ Config.MISSIONS = {
 	Snatch = {Goal = 1, Reward = 300, Label = "Secure 1 rival stickman"},
 }
 
+Config.DISCOVERY_REWARDS = {
+	Common = 25,
+	Rare = 80,
+	Epic = 250,
+	Legendary = 750,
+	Glitched = 2000,
+}
+
+Config.DISCOVERY_MILESTONES = {
+	{Count = 2, Reward = 150},
+	{Count = 3, Reward = 450},
+	{Count = 4, Reward = 1200},
+	{Count = 5, Reward = 3500},
+}
+
 Config.RARITIES = {
 	{Name = "Common", Rank = 1, Weight = 60, Cost = 25, Income = 2, Color = Color3.fromRGB(225, 225, 225), Glow = false},
 	{Name = "Rare", Rank = 2, Weight = 25, Cost = 80, Income = 7, Color = Color3.fromRGB(70, 170, 255), Glow = false},
