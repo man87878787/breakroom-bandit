@@ -231,12 +231,29 @@ local function warehouse(name, origin, accent, mirrored)
 	landmarkCount += 1
 	local m = model(architecture, name, "HeistWarehouse")
 	local signDir = mirrored and 1 or -1
-	local body = part(m, "Shell", Vector3.new(20, 11, 18), CFrame.new(origin + Vector3.new(0, 5.5, 0)), Color3.fromRGB(42, 46, 56), Enum.Material.Metal, true)
-	local roof = part(m, "Roof", Vector3.new(21, 0.8, 19), body.CFrame * CFrame.new(0, 5.8, 0), Color3.fromRGB(30, 34, 42), Enum.Material.Metal, true)
-	part(m, "Door", Vector3.new(7, 6, 0.4), body.CFrame * CFrame.new(0, -1.8, signDir * 9.2), dark, Enum.Material.Metal, false)
-	local sign = part(m, "Sign", Vector3.new(10, 2.2, 0.25), body.CFrame * CFrame.new(0, 2.8, signDir * 9.25), dark, Enum.Material.Metal, false)
+	local center = CFrame.new(origin)
+
+	local floor = part(m, "Floor", Vector3.new(20, 0.6, 18), center * CFrame.new(0, 0.3, 0), Color3.fromRGB(48, 52, 62), Enum.Material.Metal, true)
+	part(m, "Roof", Vector3.new(21, 0.8, 19), center * CFrame.new(0, 11.2, 0), Color3.fromRGB(30, 34, 42), Enum.Material.Metal, true)
+	part(m, "BackWall", Vector3.new(20, 11, 0.8), center * CFrame.new(0, 5.5, -signDir * 8.6), Color3.fromRGB(42, 46, 56), Enum.Material.Metal, true)
+	part(m, "LeftWall", Vector3.new(0.8, 11, 18), center * CFrame.new(-9.6, 5.5, 0), Color3.fromRGB(42, 46, 56), Enum.Material.Metal, true)
+	part(m, "RightWall", Vector3.new(0.8, 11, 18), center * CFrame.new(9.6, 5.5, 0), Color3.fromRGB(42, 46, 56), Enum.Material.Metal, true)
+
+	part(m, "FrontPierL", Vector3.new(5.4, 11, 0.8), center * CFrame.new(-7.3, 5.5, signDir * 8.6), Color3.fromRGB(42, 46, 56), Enum.Material.Metal, true)
+	part(m, "FrontPierR", Vector3.new(5.4, 11, 0.8), center * CFrame.new(7.3, 5.5, signDir * 8.6), Color3.fromRGB(42, 46, 56), Enum.Material.Metal, true)
+	part(m, "FrontHeader", Vector3.new(9.2, 3, 0.8), center * CFrame.new(0, 9.5, signDir * 8.6), accent, Enum.Material.Metal, true, 0.08)
+
+	local sign = part(m, "Sign", Vector3.new(8.5, 2, 0.25), center * CFrame.new(0, 8.3, signDir * 9.05), dark, Enum.Material.Metal, false)
 	textSurface(sign, "HEIST DEPOT", accent, mirrored and Enum.NormalId.Back or Enum.NormalId.Front)
-	m.PrimaryPart = body
+
+	for i = -1, 1 do
+		local crate = part(m, "InteriorCrate" .. i, Vector3.new(2.4, 2.4, 2.4), center * CFrame.new(i * 4.2, 1.5, -signDir * 2), Color3.fromRGB(83, 64, 48), Enum.Material.WoodPlanks, true)
+		crate:SetAttribute("ChaseCover", true)
+	end
+
+	local guide = part(m, "ExitGuide", Vector3.new(5, 0.12, 1), center * CFrame.new(0, 0.65, signDir * 5.5), accent, Enum.Material.Neon, false, 0.12)
+	guide:SetAttribute("NavigationAccent", true)
+	m.PrimaryPart = floor
 	return m
 end
 warehouse("WestHeistDepot", Vector3.new(-54, 0, 0), red, false)
