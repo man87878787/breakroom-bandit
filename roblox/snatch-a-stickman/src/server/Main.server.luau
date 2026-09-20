@@ -454,6 +454,16 @@ local function makePlot(index, position)
 	secureText.Font = Enum.Font.GothamBlack
 	secureText.Parent = secureGui
 
+	-- Two authoritative secure points keep deposit defense from collapsing into single-tile camping.
+	local alternateSecurePad = securePad:Clone()
+	alternateSecurePad.Name = 'SecurePad2'
+	alternateSecurePad.CFrame = CFrame.new(position + Vector3.new(12, 0.9, -12))
+	alternateSecurePad.Color = Color3.fromRGB(80, 225, 255)
+	local alternateGui = alternateSecurePad:FindFirstChildOfClass('SurfaceGui')
+	local alternateText = alternateGui and alternateGui:FindFirstChildOfClass('TextLabel')
+	if alternateText then alternateText.Text = 'SECURE B' end
+	alternateSecurePad.Parent = model
+
 	local slots = Instance.new("Folder")
 	slots.Name = "Slots"
 	slots.Parent = model
@@ -483,6 +493,7 @@ local function makePlot(index, position)
 		ShieldVisual = shield,
 		ShieldPrompt = prompt,
 		SecurePad = securePad,
+		SecurePads = {securePad, alternateSecurePad},
 		Slots = slots,
 	}
 
@@ -1401,8 +1412,15 @@ RunService.Heartbeat:Connect(function(dt)
 					humanoid.WalkSpeed = contested and Config.CONTESTED_CARRY_WALK_SPEED or Config.CARRY_WALK_SPEED
 					model:PivotTo(root.CFrame * CFrame.new(0, 3.1, 2.5) * CFrame.Angles(0, math.rad(180), 0))
 					local plot = openPlots[state.PlotIndex]
-					local securePad = plot and plot.SecurePad
-					if securePad and (root.Position - securePad.Position).Magnitude <= Config.SECURE_RADIUS then secureCarry(player) end
+					local securePads = plot and plot.SecurePads or nil
+					if securePads then
+						for _, securePad in ipairs(securePads) do
+							if securePad.Parent and (root.Position - securePad.Position).Magnitude <= Config.SECURE_RADIUS then
+								secureCarry(player)
+								break
+							end
+						end
+					end
 				end
 			end
 		end
