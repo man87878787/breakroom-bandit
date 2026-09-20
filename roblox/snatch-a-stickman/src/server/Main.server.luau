@@ -162,6 +162,14 @@ local function clearCarryPresentation(player, state, carry)
 		player:SetAttribute("CarryStartedServerTime", nil)
 		player:SetAttribute("CarryExpiresServerTime", nil)
 		player:SetAttribute("CarryContested", nil)
+		player:SetAttribute("CarryEscapedVictimZone", nil)
+		player:SetAttribute("CarryBreakawayDeadlineServerTime", nil)
+	end
+
+	local model = carry and carry.Model
+	if model and model.Parent then
+		model:SetAttribute("EscapedVictimZone", nil)
+		model:SetAttribute("BreakawayDeadlineServerTime", nil)
 	end
 
 	local victim = carry and carry.Victim
@@ -227,6 +235,8 @@ local function startCarryPresentation(player, state, model, rarity, victim)
 	player:SetAttribute("CarryVictimName", victim and victim.DisplayName or "")
 	player:SetAttribute("CarryStartedServerTime", workspace:GetServerTimeNow())
 	player:SetAttribute("CarryExpiresServerTime", expiresServerTime)
+	player:SetAttribute("CarryEscapedVictimZone", false)
+	player:SetAttribute("CarryBreakawayDeadlineServerTime", workspace:GetServerTimeNow() + Config.BREAKAWAY_SECONDS)
 
 	if victim then
 		victim:SetAttribute("StickmanThreatened", true)
@@ -822,12 +832,15 @@ local function createStickman(rarity)
 		end
 
 		local carryStartedAt = os.clock()
+		local breakawayDeadline = carryStartedAt + Config.BREAKAWAY_SECONDS
 		state.Carrying = {
 			Model = model,
 			Victim = victim,
 			VictimState = victimState,
 			StartedAt = carryStartedAt,
 			ExpiresAt = carryStartedAt + Config.CARRY_TIMEOUT_SECONDS,
+			BreakawayDeadline = breakawayDeadline,
+			EscapedVictimZone = false,
 			Contested = false,
 		}
 
@@ -835,6 +848,8 @@ local function createStickman(rarity)
 		model:SetAttribute("PreviousOwnerUserId", ownerUserId)
 		model:SetAttribute("TransferState", "InTransit")
 		model:SetAttribute("Contested", false)
+		model:SetAttribute("EscapedVictimZone", false)
+		model:SetAttribute("BreakawayDeadlineServerTime", workspace:GetServerTimeNow() + Config.BREAKAWAY_SECONDS)
 		prompt.ActionText = "Recover"
 		prompt.ObjectText = rarity.Name .. " • HOOKED"
 		prompt.HoldDuration = Config.RECOVER_HOLD_DURATION
@@ -1338,7 +1353,20 @@ RunService.Heartbeat:Connect(function(dt)
 				dropCarry(player, "Escape failed - the stickman returned.")
 			elseif carry.ExpiresAt and os.clock() >= carry.ExpiresAt then
 				dropCarry(player, "HOOK EXPIRED - the stickman returned.")
+			elseif not carry.EscapedVictimZone and carry.BreakawayDeadline and os.clock() >= carry.BreakawayDeadline then
+				dropCarry(player, "BREAKAWAY FAILED - leave the rival base faster next time.")
 			else
+				if not carry.EscapedVictimZone then
+					local victimPlot = carry.VictimState and openPlots[carry.VictimState.PlotIndex]
+					if victimPlot and (root.Position - victimPlot.Position).Magnitude >= Config.VICTIM_BASE_ESCAPE_RADIUS then
+						carry.EscapedVictimZone = true
+						model:SetAttribute("EscapedVictimZone", true)
+						model:SetAttribute("BreakawayDeadlineServerTime", 0)
+						player:SetAttribute("CarryEscapedVictimZone", true)
+						player:SetAttribute("CarryBreakawayDeadlineServerTime", 0)
+						toast(player, "BREAKAWAY! Now reach your SECURE pad.")
+					end
+				end
 				local victimCharacter = carry.Victim and carry.Victim.Character
 				local victimRoot = victimCharacter and victimCharacter:FindFirstChild("HumanoidRootPart")
 				local contested = victimRoot ~= nil and (victimRoot.Position - root.Position).Magnitude <= Config.CONTESTED_RANGE

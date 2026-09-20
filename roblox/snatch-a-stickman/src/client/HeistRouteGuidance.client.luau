@@ -12,6 +12,7 @@ local neighborhoods = connectedMap:WaitForChild("BaseNeighborhoods")
 local COLORS = {
 	Neutral = Color3.fromRGB(120, 132, 155),
 	Escape = Color3.fromRGB(92, 255, 155),
+	Breakaway = Color3.fromRGB(75, 198, 255),
 	Intercept = Color3.fromRGB(255, 108, 94),
 	Contested = Color3.fromRGB(255, 188, 72),
 }
@@ -111,6 +112,7 @@ local function refresh()
 	end
 
 	local role = carrierId == localPlayer.UserId and "Escape" or "Intercept"
+	if carrierId == localPlayer.UserId and carry:GetAttribute("EscapedVictimZone") ~= true then role = "Breakaway" end
 	if carry:GetAttribute("Contested") then role = "Contested" end
 	local victimPlot = playerPlotIndex(victimId)
 	local carrierPlot = playerPlotIndex(carrierId)
@@ -118,11 +120,15 @@ local function refresh()
 	for index, data in pairs(tracked) do
 		local isVictimRoute = index == victimPlot
 		local isCarrierHome = index == carrierPlot
-		local enabled = isVictimRoute or (role == "Escape" and isCarrierHome)
+		local enabled = isVictimRoute or ((role == "Escape" or role == "Contested") and isCarrierHome)
 		setRouteVisual(data, enabled, role, pulse)
 
 		if isVictimRoute then
-			if role == "Escape" then
+			if role == "Breakaway" then
+				local deadline = tonumber(carry:GetAttribute("BreakawayDeadlineServerTime")) or 0
+				local seconds = math.max(0, math.ceil(deadline - workspace:GetServerTimeNow()))
+				setMarkerText(data, string.format("BREAK AWAY - %ds", seconds), COLORS[role])
+			elseif role == "Escape" then
 				setMarkerText(data, "ESCAPE: FAST / SKY", COLORS[role])
 			elseif role == "Contested" then
 				setMarkerText(data, "CONTESTED - CUT THEM OFF", COLORS[role])

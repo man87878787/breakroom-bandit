@@ -424,8 +424,15 @@ RunService.Heartbeat:Connect(function(dt)
 		local expiresAt = player:GetAttribute("CarryExpiresServerTime") or 0
 		local secondsLeft = math.max(0, math.ceil(expiresAt - now))
 		local contested = player:GetAttribute("CarryContested") == true
-		carryBanner.BackgroundColor3 = contested and Color3.fromRGB(220, 125, 35) or (secondsLeft <= 8 and Color3.fromRGB(202, 72, 64) or Color3.fromRGB(32, 166, 84))
-		if pad and rootPart then
+		local escapedVictimZone = player:GetAttribute("CarryEscapedVictimZone") == true
+		local breakawayDeadline = tonumber(player:GetAttribute("CarryBreakawayDeadlineServerTime")) or 0
+		local breakawayLeft = math.max(0, math.ceil(breakawayDeadline - now))
+		carryBanner.BackgroundColor3 = contested and Color3.fromRGB(220, 125, 35)
+			or (not escapedVictimZone and Color3.fromRGB(42, 132, 202))
+			or (secondsLeft <= 8 and Color3.fromRGB(202, 72, 64) or Color3.fromRGB(32, 166, 84))
+		if not escapedVictimZone and breakawayDeadline > 0 then
+			carryBanner.Text = string.format("BREAK AWAY FROM THE RIVAL BASE  •  %ds", breakawayLeft)
+		elseif pad and rootPart then
 			local distance = math.max(0, math.floor((rootPart.Position - pad.Position).Magnitude + 0.5))
 			if victimName ~= "" then
 				carryBanner.Text = string.format("HOOKED %s FROM %s  •  %d STUDS  •  %ds", rarity, string.upper(victimName), distance, secondsLeft)
