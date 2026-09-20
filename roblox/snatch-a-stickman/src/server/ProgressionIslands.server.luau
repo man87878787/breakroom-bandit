@@ -27,6 +27,7 @@ travelFolder.Parent = root
 
 local cooldownUntil = {}
 local jobCooldownUntil = {}
+local activeIslandJob = {}
 local decorCount = 0
 local characterRoot
 local heistLocked
@@ -321,8 +322,27 @@ end
 local function buildIslandJob(parent, island)
 	local job = WorldConfig.ISLAND_JOBS[island.Id]
 	if not job then return end
-	local position = island.Center + job.PositionOffset
-	local terminal = makeTerminal(parent, island.Id .. "JobTerminal", position, island.Accent, string.upper(job.Name))
+
+	local function setProgress(player, step)
+		activeIslandJob[player] = step and {IslandId = island.Id, Step = step} or nil
+		player:SetAttribute("ActiveIslandJob", step and island.Id or nil)
+		player:SetAttribute("IslandJobStep", step or 0)
+		player:SetAttribute("IslandJobStepCount", step and #job.Steps or 0)
+	end
+
+	local function validInteraction(player, source)
+		if player.Parent ~= Players or player:GetAttribute("DataReady") ~= true then return false end
+		local rootPart = characterRoot(player)
+		if not rootPart then return false end
+		if (rootPart.Position - source.Position).Magnitude > WorldConfig.ISLAND_JOBS.MaxPromptDistance + 3 then return false end
+		if (rootPart.Position - island.Center).Magnitude > WorldConfig.ISLAND_JOBS.ResetDistance then
+			setProgress(player, nil)
+			return false
+		end
+		return true
+	end
+
+	local terminal = makeTerminal(parent, island.Id .. "JobTerminal", island.Center + job.PositionOffset, island.Accent, string.upper(job.Name))
 	terminal:SetAttribute("IslandJob", island.Id)
 	terminal:SetAttribute("Reward", job.Reward)
 	local body = terminal:FindFirstChild("Body")
@@ -330,30 +350,69 @@ local function buildIslandJob(parent, island)
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "JobPrompt"
 	prompt.ActionText = job.Action
-	prompt.ObjectText = string.format("%s  +$%d", job.Name, job.Reward)
-	prompt.HoldDuration = 1.1
+	prompt.ObjectText = string.format("%s  •  $%d", job.Name, job.Reward)
+	prompt.HoldDuration = WorldConfig.ISLAND_JOBS.StepHoldDuration
 	prompt.MaxActivationDistance = WorldConfig.ISLAND_JOBS.MaxPromptDistance
 	prompt.RequiresLineOfSight = true
 	prompt.Parent = body
 	prompt.Triggered:Connect(function(player)
-		if player.Parent ~= Players or player:GetAttribute("DataReady") ~= true then return end
-		local rootPart = characterRoot(player)
-		if not rootPart or (rootPart.Position - body.Position).Magnitude > WorldConfig.ISLAND_JOBS.MaxPromptDistance + 3 then return end
+		if not validInteraction(player, body) then return end
 		if heistLocked(player) then toast(player, "Finish the active heist before taking an island job."); return end
 		local perPlayer = jobCooldownUntil[player]
 		local readyAt = perPlayer and perPlayer[island.Id] or 0
 		local now = os.clock()
 		if now < readyAt then toast(player, string.format("%s ready again in %ds.", job.Name, math.ceil(readyAt - now))); return end
-		local stats = player:FindFirstChild("leaderstats")
-		local coins = stats and stats:FindFirstChild("Coins")
-		if not coins or not coins:IsA("IntValue") then return end
-		jobCooldownUntil[player] = perPlayer or {}
-		jobCooldownUntil[player][island.Id] = now + WorldConfig.ISLAND_JOBS.CooldownSeconds
-		coins.Value += job.Reward
-		player:SetAttribute("LastIslandJob", island.Id)
-		player:SetAttribute("IslandJobReadyServerTime", workspace:GetServerTimeNow() + WorldConfig.ISLAND_JOBS.CooldownSeconds)
-		toast(player, string.format("%s complete! +$%d", job.Name, job.Reward))
+		local active = activeIslandJob[player]
+		if active then
+			toast(player, active.IslandId == island.Id and "Finish your current route first." or "Finish your other island job first.")
+			return
+		end
+		setProgress(player, 1)
+		toast(player, string.format("%s started • 1/%d: %s", job.Name, #job.Steps, job.Steps[1].Name))
 	end)
+
+	for index, step in ipairs(job.Steps) do
+		local checkpoint = makeTerminal(parent, island.Id .. "JobStep" .. index, island.Center + step.Offset, island.Accent, string.upper(step.Name))
+		checkpoint:SetAttribute("IslandJob", island.Id)
+		checkpoint:SetAttribute("JobStep", index)
+		local stepBody = checkpoint:FindFirstChild("Body")
+		if stepBody then
+			local stepPrompt = Instance.new("ProximityPrompt")
+			stepPrompt.Name = "StepPrompt"
+			stepPrompt.ActionText = step.Action
+			stepPrompt.ObjectText = string.format("%s  •  %d/%d", step.Name, index, #job.Steps)
+			stepPrompt.HoldDuration = WorldConfig.ISLAND_JOBS.StepHoldDuration
+			stepPrompt.MaxActivationDistance = WorldConfig.ISLAND_JOBS.MaxPromptDistance
+			stepPrompt.RequiresLineOfSight = true
+			stepPrompt.Parent = stepBody
+			stepPrompt.Triggered:Connect(function(player)
+				if not validInteraction(player, stepBody) then return end
+				if heistLocked(player) then toast(player, "Island job paused while a heist is active."); return end
+				local active = activeIslandJob[player]
+				if not active or active.IslandId ~= island.Id then toast(player, "Start this job at the main terminal first."); return end
+				if active.Step ~= index then
+					local expected = job.Steps[active.Step]
+					toast(player, expected and ("Next: " .. expected.Name) or "Return to the job terminal.")
+					return
+				end
+				if index < #job.Steps then
+					setProgress(player, index + 1)
+					toast(player, string.format("%d/%d complete • Next: %s", index, #job.Steps, job.Steps[index + 1].Name))
+					return
+				end
+				local stats = player:FindFirstChild("leaderstats")
+				local coins = stats and stats:FindFirstChild("Coins")
+				if not coins or not coins:IsA("IntValue") then return end
+				jobCooldownUntil[player] = jobCooldownUntil[player] or {}
+				jobCooldownUntil[player][island.Id] = os.clock() + WorldConfig.ISLAND_JOBS.CooldownSeconds
+				coins.Value += job.Reward
+				setProgress(player, nil)
+				player:SetAttribute("LastIslandJob", island.Id)
+				player:SetAttribute("IslandJobReadyServerTime", workspace:GetServerTimeNow() + WorldConfig.ISLAND_JOBS.CooldownSeconds)
+				toast(player, string.format("%s complete! +$%d", job.Name, job.Reward))
+			end)
+		end
+	end
 end
 
 local function buildIsland(island, tier)
@@ -472,6 +531,10 @@ local function travel(player, source, island, destination, free)
 	end
 
 	cooldownUntil[player] = os.clock() + WorldConfig.ISLAND_TRAVEL.CooldownSeconds
+	activeIslandJob[player] = nil
+	player:SetAttribute("ActiveIslandJob", nil)
+	player:SetAttribute("IslandJobStep", 0)
+	player:SetAttribute("IslandJobStepCount", 0)
 	local character = player.Character
 	if not character then return end
 	character:PivotTo(CFrame.new(destination + Vector3.new(0, 4, 0)))
@@ -556,11 +619,15 @@ end
 Players.PlayerAdded:Connect(function(player)
 	player:SetAttribute("IslandTravelArrival", "")
 	player:SetAttribute("IslandTravelPulse", 0)
+	player:SetAttribute("ActiveIslandJob", nil)
+	player:SetAttribute("IslandJobStep", 0)
+	player:SetAttribute("IslandJobStepCount", 0)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
 	cooldownUntil[player] = nil
 	jobCooldownUntil[player] = nil
+	activeIslandJob[player] = nil
 end)
 
 root:SetAttribute("IslandCount", 1 + #WorldConfig.PROGRESSION_ISLANDS)

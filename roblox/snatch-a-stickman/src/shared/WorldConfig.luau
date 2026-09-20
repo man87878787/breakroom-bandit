@@ -137,8 +137,26 @@ WorldConfig.ISLAND_TRAVEL = {
 WorldConfig.ISLAND_JOBS = {
 	CooldownSeconds = 45,
 	MaxPromptDistance = 12,
-	Ironwake = {Name = "Freight Manifest", Action = "Run Manifest", Reward = 110, PositionOffset = Vector3.new(-18, 0, 38)},
-	Crownreach = {Name = "Archive Scan", Action = "Scan Archive", Reward = 240, PositionOffset = Vector3.new(18, 0, 40)},
+	StepHoldDuration = 0.65,
+	ResetDistance = 180,
+	Ironwake = {
+		Name = "Freight Manifest", Action = "Start Manifest", Reward = 165,
+		PositionOffset = Vector3.new(-18, 0, 38),
+		Steps = {
+			{Name = "Scan Cargo", Action = "Scan", Offset = Vector3.new(-46, 0, 18)},
+			{Name = "Seal Container", Action = "Seal", Offset = Vector3.new(14, 0, 66)},
+			{Name = "Confirm Dispatch", Action = "Confirm", Offset = Vector3.new(48, 0, 22)},
+		},
+	},
+	Crownreach = {
+		Name = "Archive Scan", Action = "Start Scan", Reward = 320,
+		PositionOffset = Vector3.new(18, 0, 40),
+		Steps = {
+			{Name = "Index Relic", Action = "Index", Offset = Vector3.new(-38, 0, 26)},
+			{Name = "Verify Crest", Action = "Verify", Offset = Vector3.new(8, 0, 72)},
+			{Name = "Seal Record", Action = "Seal", Offset = Vector3.new(44, 0, 30)},
+		},
+	},
 }
 
 WorldConfig.ACTIVITY_SETTINGS = {
