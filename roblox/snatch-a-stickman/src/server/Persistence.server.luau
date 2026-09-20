@@ -28,6 +28,8 @@ local persistentFields = {
 	"LifetimeCoinsEarned",
 	"MasteryXP",
 	"MasteryLevel",
+	"FastRouteEscapes",
+	"SkyRouteEscapes",
 }
 
 local function keyFor(player)
@@ -110,7 +112,7 @@ end
 local function snapshot(session)
 	local profile = session.Profile
 	local data = {
-		Version = 2,
+		Version = 3,
 		Coins = sanitizeInteger(session.Coins.Value, 0, MAX_REASONABLE_NUMBER) or 0,
 		CollectionData = sanitizeCollection(session.Collection.Value) or "[]",
 		UpdatedAt = os.time(),

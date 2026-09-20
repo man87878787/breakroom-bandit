@@ -80,7 +80,9 @@ local function refresh()
 		progress = 1
 	else
 		subtitle.Text = string.format("%d / %d XP to next level", xp, nextXP)
-		detail.Text = string.format("+%d%% passive income • earn XP from recruiting, snatching, streaks, and discoveries", math.floor(bonus * 100 + 0.5))
+		local fastRoutes = tonumber(player:GetAttribute("FastRouteEscapes")) or 0
+		local skyRoutes = tonumber(player:GetAttribute("SkyRouteEscapes")) or 0
+		detail.Text = string.format("+%d%% income - route mastery F:%d / S:%d", math.floor(bonus * 100 + 0.5), fastRoutes, skyRoutes)
 	end
 	TweenService:Create(bar, TweenInfo.new(0.24, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		Size = UDim2.fromScale(math.clamp(progress, 0, 1), 1),
@@ -106,6 +108,9 @@ for _, name in ipairs({
 	"MasteryTitle",
 	"MasteryMaxed",
 	"MasteryPulse",
+	"FastRouteEscapes",
+	"SkyRouteEscapes",
+	"RouteVersatility",
 }) do
 	player:GetAttributeChangedSignal(name):Connect(refresh)
 end

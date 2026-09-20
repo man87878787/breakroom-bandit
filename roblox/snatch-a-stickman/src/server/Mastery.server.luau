@@ -114,9 +114,14 @@ local function start(player)
 		Snatches = snatches.Value,
 		Discovery = tonumber(player:GetAttribute("DiscoveryCount")) or 0,
 		Streak = streak.Value,
+		FastRoutes = (profile:FindFirstChild("FastRouteEscapes") and profile.FastRouteEscapes.Value) or 0,
+		SkyRoutes = (profile:FindFirstChild("SkyRouteEscapes") and profile.SkyRouteEscapes.Value) or 0,
 		EarnClaims = {},
 	}
 	sessions[player] = session
+	player:SetAttribute("FastRouteEscapes", session.FastRoutes)
+	player:SetAttribute("SkyRouteEscapes", session.SkyRoutes)
+	player:SetAttribute("RouteVersatility", math.min(session.FastRoutes, session.SkyRoutes))
 	publish(player, levelValue, xpValue)
 
 	recruits.Changed:Connect(function(value)
@@ -132,6 +137,25 @@ local function start(player)
 		session.Snatches = math.max(session.Snatches, value)
 		addXP(player, session, delta * Config.MASTERY_SNATCH_XP)
 	end)
+
+	local function connectRouteMastery(valueObject, key, routeName)
+		if not valueObject then return end
+		valueObject.Changed:Connect(function(value)
+			if sessions[player] ~= session then return end
+			local before = session[key] or 0
+			local delta = math.max(0, value - before)
+			session[key] = math.max(before, value)
+			player:SetAttribute(key == "FastRoutes" and "FastRouteEscapes" or "SkyRouteEscapes", session[key])
+			player:SetAttribute("RouteVersatility", math.min(session.FastRoutes or 0, session.SkyRoutes or 0))
+			if delta > 0 then
+				addXP(player, session, delta * Config.MASTERY_ROUTE_XP)
+				player:SetAttribute("RouteMasteryPulse", (player:GetAttribute("RouteMasteryPulse") or 0) + delta)
+				toastRemote:FireClient(player, string.format("%s ROUTE MASTERED! +%d XP", routeName, delta * Config.MASTERY_ROUTE_XP))
+			end
+		end)
+	end
+	connectRouteMastery(profile:FindFirstChild("FastRouteEscapes"), "FastRoutes", "FAST")
+	connectRouteMastery(profile:FindFirstChild("SkyRouteEscapes"), "SkyRoutes", "SKY")
 
 	streak.Changed:Connect(function(value)
 		if sessions[player] ~= session then return end

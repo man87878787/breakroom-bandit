@@ -982,6 +982,11 @@ secureCarry = function(player)
 	state.Profile.CurrentStreak.Value += 1
 	state.Profile.TotalSnatches.Value += 1
 	state.Profile.SessionSnatches.Value += 1
+	if carry.EscapeRoute == "Fast" then
+		state.Profile.FastRouteEscapes.Value += 1
+	elseif carry.EscapeRoute == "Sky" then
+		state.Profile.SkyRouteEscapes.Value += 1
+	end
 	if state.Profile.CurrentStreak.Value > state.Profile.BestStreak.Value then
 		state.Profile.BestStreak.Value = state.Profile.CurrentStreak.Value
 	end
@@ -1278,6 +1283,8 @@ Players.PlayerAdded:Connect(function(player)
 	intValue("LifetimeCoinsEarned", 0)
 	intValue("MasteryXP", 0)
 	intValue("MasteryLevel", 0)
+	intValue("FastRouteEscapes", 0)
+	intValue("SkyRouteEscapes", 0)
 	intValue("CurrentStreak", 0)
 	intValue("SessionEarned", 0)
 	intValue("SessionRecruits", 0)
