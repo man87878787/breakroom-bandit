@@ -50,7 +50,7 @@ end
 
 makePart(
 	"Ground",
-	Vector3.new(180, 1, 180),
+	Vector3.new(240, 1, 240),
 	CFrame.new(0, -1, 0),
 	Color3.fromRGB(22, 24, 30),
 	Enum.Material.Slate

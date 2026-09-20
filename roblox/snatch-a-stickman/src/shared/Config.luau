@@ -53,6 +53,11 @@ Config.SECURE_BONUS_MULTIPLIER = 5
 Config.STREAK_BONUS_STEP = 0.12
 Config.STREAK_BONUS_CAP = 0.60
 
+-- City transit
+Config.TRANSIT_COOLDOWN_SECONDS = 3.5
+Config.TRANSIT_MAX_TRIGGER_DISTANCE = 14
+Config.TRANSIT_EXIT_HEIGHT = 4
+
 -- Session missions
 Config.MISSIONS = {
 	Recruit = {Goal = 3, Reward = 150, Label = "Recruit 3 stickmen"},

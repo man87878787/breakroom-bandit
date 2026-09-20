@@ -65,10 +65,10 @@ color.Parent = Lighting
 
 -- Perimeter rails make the playable space feel intentional and prevent accidental falls.
 local railColor = Color3.fromRGB(48, 55, 72)
-part("NorthRail", Vector3.new(180, 3, 1.5), CFrame.new(0, 1, -89), railColor, Enum.Material.Metal, true)
-part("SouthRail", Vector3.new(180, 3, 1.5), CFrame.new(0, 1, 89), railColor, Enum.Material.Metal, true)
-part("WestRail", Vector3.new(1.5, 3, 180), CFrame.new(-89, 1, 0), railColor, Enum.Material.Metal, true)
-part("EastRail", Vector3.new(1.5, 3, 180), CFrame.new(89, 1, 0), railColor, Enum.Material.Metal, true)
+part("NorthRail", Vector3.new(240, 3, 1.5), CFrame.new(0, 1, -119), railColor, Enum.Material.Metal, true)
+part("SouthRail", Vector3.new(240, 3, 1.5), CFrame.new(0, 1, 119), railColor, Enum.Material.Metal, true)
+part("WestRail", Vector3.new(1.5, 3, 240), CFrame.new(-119, 1, 0), railColor, Enum.Material.Metal, true)
+part("EastRail", Vector3.new(1.5, 3, 240), CFrame.new(119, 1, 0), railColor, Enum.Material.Metal, true)
 
 -- Market outline improves navigation at a glance.
 local marketEdge = Color3.fromRGB(74, 217, 148)
