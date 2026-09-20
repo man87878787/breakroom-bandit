@@ -134,6 +134,13 @@ WorldConfig.ISLAND_TRAVEL = {
 	MaxPromptDistance = 12,
 }
 
+WorldConfig.ISLAND_JOBS = {
+	CooldownSeconds = 45,
+	MaxPromptDistance = 12,
+	Ironwake = {Name = "Freight Manifest", Action = "Run Manifest", Reward = 110, PositionOffset = Vector3.new(-18, 0, 38)},
+	Crownreach = {Name = "Archive Scan", Action = "Scan Archive", Reward = 240, PositionOffset = Vector3.new(18, 0, 40)},
+}
+
 WorldConfig.ACTIVITY_SETTINGS = {
 	InitialDelay = 24,
 	Interval = 36,

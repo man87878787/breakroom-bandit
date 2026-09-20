@@ -26,7 +26,11 @@ travelFolder.Name = "Travel"
 travelFolder.Parent = root
 
 local cooldownUntil = {}
+local jobCooldownUntil = {}
 local decorCount = 0
+local characterRoot
+local heistLocked
+local toast
 
 local COLORS = {
 	Dark = Color3.fromRGB(27, 31, 42),
@@ -314,6 +318,44 @@ local function buildIslandArchitecture(parent, island, tier)
 	end
 end
 
+local function buildIslandJob(parent, island)
+	local job = WorldConfig.ISLAND_JOBS[island.Id]
+	if not job then return end
+	local position = island.Center + job.PositionOffset
+	local terminal = makeTerminal(parent, island.Id .. "JobTerminal", position, island.Accent, string.upper(job.Name))
+	terminal:SetAttribute("IslandJob", island.Id)
+	terminal:SetAttribute("Reward", job.Reward)
+	local body = terminal:FindFirstChild("Body")
+	if not body then return end
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "JobPrompt"
+	prompt.ActionText = job.Action
+	prompt.ObjectText = string.format("%s  +$%d", job.Name, job.Reward)
+	prompt.HoldDuration = 1.1
+	prompt.MaxActivationDistance = WorldConfig.ISLAND_JOBS.MaxPromptDistance
+	prompt.RequiresLineOfSight = true
+	prompt.Parent = body
+	prompt.Triggered:Connect(function(player)
+		if player.Parent ~= Players or player:GetAttribute("DataReady") ~= true then return end
+		local rootPart = characterRoot(player)
+		if not rootPart or (rootPart.Position - body.Position).Magnitude > WorldConfig.ISLAND_JOBS.MaxPromptDistance + 3 then return end
+		if heistLocked(player) then toast(player, "Finish the active heist before taking an island job."); return end
+		local perPlayer = jobCooldownUntil[player]
+		local readyAt = perPlayer and perPlayer[island.Id] or 0
+		local now = os.clock()
+		if now < readyAt then toast(player, string.format("%s ready again in %ds.", job.Name, math.ceil(readyAt - now))); return end
+		local stats = player:FindFirstChild("leaderstats")
+		local coins = stats and stats:FindFirstChild("Coins")
+		if not coins or not coins:IsA("IntValue") then return end
+		jobCooldownUntil[player] = perPlayer or {}
+		jobCooldownUntil[player][island.Id] = now + WorldConfig.ISLAND_JOBS.CooldownSeconds
+		coins.Value += job.Reward
+		player:SetAttribute("LastIslandJob", island.Id)
+		player:SetAttribute("IslandJobReadyServerTime", workspace:GetServerTimeNow() + WorldConfig.ISLAND_JOBS.CooldownSeconds)
+		toast(player, string.format("%s complete! +$%d", job.Name, job.Reward))
+	end)
+end
+
 local function buildIsland(island, tier)
 	local m = model(islandFolder, island.Id)
 	m:SetAttribute("IslandId", island.Id)
@@ -344,6 +386,7 @@ local function buildIsland(island, tier)
 	decor.Parent = m
 	buildDecor(decor, island, tier)
 	buildIslandArchitecture(decor, island, tier)
+	buildIslandJob(decor, island)
 	return m
 end
 
@@ -351,13 +394,13 @@ for index, island in ipairs(WorldConfig.PROGRESSION_ISLANDS) do
 	buildIsland(island, index)
 end
 
-local function toast(player, message)
+toast = function(player, message)
 	if player and player.Parent == Players then
 		toastRemote:FireClient(player, message)
 	end
 end
 
-local function characterRoot(player)
+characterRoot = function(player)
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
@@ -378,7 +421,7 @@ local function upgradeScore(player)
 	return total
 end
 
-local function heistLocked(player)
+heistLocked = function(player)
 	return player:GetAttribute("CarryRarity") ~= nil
 		or player:GetAttribute("CarryVictimName") ~= nil
 		or player:GetAttribute("StickmanThreatened") == true
@@ -517,6 +560,7 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
 	cooldownUntil[player] = nil
+	jobCooldownUntil[player] = nil
 end)
 
 root:SetAttribute("IslandCount", 1 + #WorldConfig.PROGRESSION_ISLANDS)
